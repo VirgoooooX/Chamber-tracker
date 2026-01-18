@@ -1,0 +1,301 @@
+// src/components/UsageLogList.tsx
+import React, { useEffect, useMemo, useRef } from 'react';
+import {
+  Box, Typography, TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
+  Paper, IconButton, Tooltip, CircularProgress, Alert, Button, Chip,
+} from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // 新增图标
+import { format, parseISO, isValid as isValidDate } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+import type { ChipProps } from '@mui/material';
+
+import { UsageLog, Project, Config as ConfigType } from '../types';
+import { fetchUsageLogs, markLogAsCompleted } from '../store/usageLogsSlice'; // 导入 markLogAsCompleted
+import { fetchChambers } from '../store/chambersSlice';
+import { fetchProjects } from '../store/projectsSlice';
+import { fetchTestProjects } from '../store/testProjectsSlice';
+import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'; // 导入辅助函数
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+
+interface UsageLogListProps {
+  onViewDetails: (logId: string) => void;
+  onEdit: (log: UsageLog) => void;
+  onDelete: (logId: string) => void;
+}
+
+const UsageLogList: React.FC<UsageLogListProps> = ({ onViewDetails, onEdit, onDelete }) => {
+  const dispatch = useAppDispatch()
+
+  const { usageLogs, loading: loadingUsageLogs, error: usageLogsError } = useAppSelector((state) => state.usageLogs)
+  const { chambers, loading: loadingChambers, error: chambersError } = useAppSelector((state) => state.chambers)
+  const { projects, loading: loadingProjects, error: projectsError } = useAppSelector((state) => state.projects)
+  const { testProjects, loading: loadingTestProjects, error: testProjectsError } = useAppSelector((state) => state.testProjects)
+
+  const dataFetchedRef = useRef({
+    usageLogs: false, chambers: false, projects: false, testProjects: false,
+  });
+
+  useEffect(() => {
+    if (!dataFetchedRef.current.usageLogs) {
+      if (usageLogs.length > 0) {
+        dataFetchedRef.current.usageLogs = true;
+      } else if (!loadingUsageLogs) {
+        dispatch(fetchUsageLogs()).finally(() => { dataFetchedRef.current.usageLogs = true; });
+      }
+    }
+    if (!dataFetchedRef.current.chambers) {
+      if (chambers.length > 0) {
+        dataFetchedRef.current.chambers = true;
+      } else if (!loadingChambers) {
+        dispatch(fetchChambers()).finally(() => { dataFetchedRef.current.chambers = true; });
+      }
+    }
+    if (!dataFetchedRef.current.projects) {
+      if (projects.length > 0) {
+        dataFetchedRef.current.projects = true;
+      } else if (!loadingProjects) {
+        dispatch(fetchProjects()).finally(() => { dataFetchedRef.current.projects = true; });
+      }
+    }
+    if (!dataFetchedRef.current.testProjects) {
+      if (testProjects.length > 0) {
+        dataFetchedRef.current.testProjects = true;
+      } else if (!loadingTestProjects) {
+        dispatch(fetchTestProjects()).finally(() => { dataFetchedRef.current.testProjects = true; });
+      }
+    }
+  }, [
+    dispatch,
+    usageLogs.length,
+    chambers.length,
+    projects.length,
+    testProjects.length,
+    loadingUsageLogs,
+    loadingChambers,
+    loadingProjects,
+    loadingTestProjects,
+  ]);
+
+  const chamberNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    chambers.forEach((c) => map.set(c.id, c.name));
+    return map;
+  }, [chambers]);
+
+  const projectById = useMemo(() => {
+    const map = new Map<string, Project>();
+    projects.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [projects]);
+
+  const testProjectNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    testProjects.forEach((tp) => map.set(tp.id, tp.name));
+    return map;
+  }, [testProjects]);
+
+  const configByProjectId = useMemo(() => {
+    const map = new Map<string, Map<string, ConfigType>>();
+    projects.forEach((p) => {
+      if (!p.configs || p.configs.length === 0) return;
+      const configMap = new Map<string, ConfigType>();
+      p.configs.forEach((c) => configMap.set(c.id, c));
+      map.set(p.id, configMap);
+    });
+    return map;
+  }, [projects]);
+
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    const date = parseISO(dateString);
+    return isValidDate(date) ? format(date, 'yyyy-MM-dd HH:mm', { locale: zhCN }) : '无效日期';
+  };
+
+  const getChamberName = (chamberId: string): string => {
+    return chamberNameById.get(chamberId) || chamberId;
+  };
+
+  const getProject = (projectId?: string): Project | null => {
+    if (!projectId) return null;
+    return projectById.get(projectId) || null;
+  };
+
+  const getTestProjectName = (testProjectId?: string): string => {
+    if (!testProjectId) return '无';
+    return testProjectNameById.get(testProjectId) || testProjectId;
+  };
+
+  // 修改 getStatusChipProps 以使用 getEffectiveUsageLogStatus
+  const getStatusChipProperties = (log: UsageLog): { label: string; color: ChipProps['color'] } => {
+    const effectiveStatus = getEffectiveUsageLogStatus(log);
+    switch (effectiveStatus) {
+      case 'completed': return { label: '已完成', color: 'success' };
+      case 'in-progress': return { label: '进行中', color: 'warning' };
+      case 'not-started': return { label: '未开始', color: 'primary' };
+      case 'overdue': return { label: '已超时', color: 'error' };
+      default: return { label: '未知', color: 'default' };
+    }
+  };
+
+  const isLoading = loadingUsageLogs || loadingChambers || loadingProjects || loadingTestProjects;
+  const initialLoadDone = dataFetchedRef.current.usageLogs && dataFetchedRef.current.chambers && dataFetchedRef.current.projects && dataFetchedRef.current.testProjects;
+
+  if (isLoading && !initialLoadDone) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>正在加载使用记录列表...</Typography>
+      </Box>
+    );
+  }
+
+  const combinedError = usageLogsError || chambersError || projectsError || testProjectsError;
+  if (combinedError && !isLoading) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        加载数据失败: {combinedError}
+        <Button
+            size="small"
+            onClick={() => {
+                dataFetchedRef.current = { usageLogs: false, chambers: false, projects: false, testProjects: false };
+                dispatch(fetchUsageLogs());
+                dispatch(fetchChambers());
+                dispatch(fetchProjects());
+                dispatch(fetchTestProjects());
+            }}
+            sx={{ ml: 2 }}
+        >
+            重试
+        </Button>
+      </Alert>
+    );
+  }
+
+  return (
+    <TableContainer component={Paper}>
+      <Table sx={{ minWidth: 900 }} aria-label="使用记录列表">
+        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 'bold' }}>环境箱</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>使用人</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>开始时间</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>结束时间</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>状态</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>关联项目</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>已选Configs</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>已选WaterFall</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>关联测试项目</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: '150px' }} align="center">操作</TableCell> {/* 调整宽度 */}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {usageLogs.length === 0 && !isLoading && initialLoadDone ? (
+            <TableRow>
+              <TableCell colSpan={10} align="center">
+                没有找到使用记录数据。
+              </TableCell>
+            </TableRow>
+          ) : (
+            usageLogs.map((log) => {
+              const linkedProject = getProject(log.projectId);
+              const configMap = log.projectId ? configByProjectId.get(log.projectId) : undefined;
+              const statusProps = getStatusChipProperties(log);
+              const effectiveStatus = getEffectiveUsageLogStatus(log); // 用于条件判断
+
+              return (
+                <TableRow key={log.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableCell>{getChamberName(log.chamberId)}</TableCell>
+                  <TableCell>{log.user}</TableCell>
+                  <TableCell>{formatDate(log.startTime)}</TableCell>
+                  <TableCell>{formatDate(log.endTime)}</TableCell>
+                  <TableCell>
+                    <Chip label={statusProps.label} color={statusProps.color} size="small" />
+                  </TableCell>
+                  <TableCell>{linkedProject ? linkedProject.name : (log.projectId || '无')}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      if (log.selectedConfigIds && log.selectedConfigIds.length > 0) {
+                        if (linkedProject && linkedProject.configs) {
+                          return (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '200px', maxHeight: '70px', overflowY: 'auto' }}>
+                              {log.selectedConfigIds.map(configId => {
+                                const config = configMap?.get(configId);
+                                return (
+                                  <Tooltip key={configId} title={config?.remark || config?.name || `Config ID: ${configId}`}>
+                                    <Chip label={config?.name || `ID: ${configId.substring(0, 6)}`} size="small" variant="outlined" />
+                                  </Tooltip>
+                                );
+                              })}
+                            </Box>
+                          );
+                        }
+                        if (log.projectId && !linkedProject && loadingProjects) {
+                          return '加载中...';
+                        }
+                        return (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '200px', maxHeight: '70px', overflowY: 'auto' }}>
+                            {log.selectedConfigIds.map(configId => (
+                              <Tooltip key={configId} title={`Config ID: ${configId}`}>
+                                <Chip label={`ID: ${configId.substring(0, 6)}`} size="small" variant="outlined" />
+                              </Tooltip>
+                            ))}
+                          </Box>
+                        );
+                      }
+                      return '无';
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {log.selectedWaterfall ? (
+                      <Chip label={log.selectedWaterfall} size="small" variant="outlined" color="secondary" />
+                    ) : '无'}
+                  </TableCell>
+                  <TableCell>{getTestProjectName(log.testProjectId)}</TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="查看详情">
+                      <IconButton onClick={() => onViewDetails(log.id)} size="small" color="info" sx={{ p: 0.5 }}>
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="编辑">
+                      <IconButton onClick={() => onEdit(log)} size="small" color="primary" sx={{ p: 0.5 }}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {/* "标记为完成" 按钮 */}
+                    {(effectiveStatus === 'in-progress' || effectiveStatus === 'overdue') && (
+                      <Tooltip title="标记为已完成">
+                        <IconButton
+                          onClick={() => {
+                            if (window.confirm(`确定要将此记录标记为 "已完成" 吗？`)) {
+                              dispatch(markLogAsCompleted(log.id));
+                            }
+                          }}
+                          size="small"
+                          color="success" // MUI success color (green)
+                          sx={{ p: 0.5 }}
+                        >
+                          <CheckCircleOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title="删除">
+                      <IconButton onClick={() => onDelete(log.id)} size="small" color="error" sx={{ p: 0.5 }}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
+
+export default UsageLogList;

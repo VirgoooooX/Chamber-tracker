@@ -1,0 +1,50 @@
+// src/App.tsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/Layout';
+import TimelinePage from './pages/TimelinePage';
+import ChambersPage from './pages/ChambersPage';
+import ProjectsPage from './pages/ProjectsPage';
+import TestProjectsPage from './pages/TestProjectsPage';
+import UsageLogPage from './pages/UsagelogPage';
+import LoginPage from './pages/LoginPage'; // 新增
+import PrivateRoute from './components/PrivateRoute'; // 新增
+import { loadUserFromStorage } from './store/authSlice'; // 新增
+import { useEffect } from 'react'; // 新增
+import { useAppDispatch } from './store/hooks'
+
+function App() {
+  const dispatch = useAppDispatch()
+
+  useEffect(() => { // 新增: 应用启动时尝试从 localStorage 加载用户信息
+    dispatch(loadUserFromStorage());
+  }, [dispatch]);
+
+  return (
+    <Router>
+      <Layout> {/* Layout 现在可能需要感知认证状态来显示/隐藏登出按钮 */}
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* 受保护的路由 */}
+          <Route element={<PrivateRoute />}> {/* 所有需要登录的页面 */}
+            <Route path="/" element={<Navigate replace to="/timeline" />} />
+            <Route path="/timeline" element={<TimelinePage />} />
+            <Route path="/usage-logs" element={<UsageLogPage />} />
+          </Route>
+
+          <Route element={<PrivateRoute allowedRoles={['admin']} />}> {/* 仅管理员可访问的页面 */}
+            <Route path="/chambers" element={<ChambersPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/test-projects" element={<TestProjectsPage />} />
+          </Route>
+          
+          {/* 可以添加一个 404 Not Found 页面 */}
+          {/* <Route path="*" element={<NotFoundPage />} /> */}
+        </Routes>
+      </Layout>
+    </Router>
+  );
+}
+
+export default App;
