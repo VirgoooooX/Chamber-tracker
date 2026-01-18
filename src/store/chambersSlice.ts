@@ -2,7 +2,7 @@
 import { createSlice, createAsyncThunk, PayloadAction, SerializedError } from '@reduxjs/toolkit'; // 导入 SerializedError
 import { Chamber } from '../types';
 import * as chamberService from '../services/chamberService';
-import type { RootState, AppDispatch } from './index'; 
+import type { RootState } from './index'; 
 
 interface ChambersState {
   chambers: Chamber[];
@@ -39,7 +39,7 @@ export const addChamber = createAsyncThunk<
   { rejectValue: string; state: RootState }
 >(
   'chambers/addChamber',
-  async (chamberDataFromForm, { rejectWithValue, getState }) => {
+  async (chamberDataFromForm, { rejectWithValue }) => {
     try {
       const newChamberId = await chamberService.createChamber(chamberDataFromForm);
       const newChamber = await chamberService.getChamberById(newChamberId);
@@ -59,7 +59,7 @@ export const updateChamber = createAsyncThunk<
   { rejectValue: string; state: RootState }
 >(
   'chambers/updateChamber',
-  async ({ id, chamber: chamberUpdateData }, { rejectWithValue, getState }) => {
+  async ({ id, chamber: chamberUpdateData }, { rejectWithValue }) => {
     try {
       await chamberService.updateChamber(id, chamberUpdateData);
       // 为了在 fulfilled reducer 中获得完整的对象，也可以在此处调用 getChamberById(id)

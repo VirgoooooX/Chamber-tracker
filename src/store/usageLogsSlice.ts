@@ -84,7 +84,7 @@ export const updateUsageLog = createAsyncThunk<
   { rejectValue: string; dispatch: AppDispatch; state: RootState }
 >(
   'usageLogs/updateUsageLog',
-  async ({ id, log: logUpdateData }, { rejectWithValue, dispatch, getState }) => {
+  async ({ id, log: logUpdateData }, { rejectWithValue, dispatch }) => {
     try {
       await usageLogService.updateUsageLog(id, logUpdateData);
 

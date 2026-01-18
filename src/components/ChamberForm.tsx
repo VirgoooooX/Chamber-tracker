@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
 import { 
   Box, 
   TextField, 
@@ -13,15 +12,14 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
-  FormHelperText, // 新增
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'; // 新增
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'; // 新增
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'; // 新增
 import { zhCN } from 'date-fns/locale'; // 新增
 import { Chamber } from '../types';
-import { AppDispatch } from '../store';
 import { addChamber, updateChamber } from '../store/chambersSlice';
+import { useAppDispatch } from '../store/hooks'
 
 interface ChamberFormProps {
   open: boolean;
@@ -30,7 +28,7 @@ interface ChamberFormProps {
 }
 
 const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch()
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'available' | 'in-use' | 'maintenance'>('available');

@@ -33,8 +33,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ open, onClose, projectI
   // 修正 useSelector，并获取 loading 和 error 状态
   const { 
     projects, 
-    loading: projectsLoading, 
-    error: projectsError 
+    loading: projectsLoading
   } = useAppSelector((state) => state.projects)
 
   const [project, setProject] = useState<Project | null>(null);

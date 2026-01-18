@@ -1,6 +1,6 @@
 // src/components/Layout.tsx
 import React, { ReactNode, useState } from 'react'; // useState for potential FAB group open/close
-import { useLocation, useNavigate } from 'react-router-dom'; // useNavigate for programmatic navigation
+import { useNavigate } from 'react-router-dom'; // useNavigate for programmatic navigation
 import {
   AppBar,
   Toolbar,
@@ -33,15 +33,6 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-// Define actions for the SpeedDial or FAB group
-const actions = [
-  { icon: <AcUnitIcon />, name: '环境箱管理', path: '/chambers' },
-  { icon: <BusinessCenterIcon />, name: '项目管理', path: '/projects' },
-  { icon: <ScienceIcon />, name: '测试项目管理', path: '/test-projects' },
-  { icon: <ListAltIcon />, name: '使用记录管理', path: '/usage-logs' },
-  { icon: <TimelineIcon />, name: '时间线视图', path: '/timeline' }, // Current main view
-];
-
 // Styled Box for the FAB group container
 const FabContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -62,7 +53,6 @@ const allActions = [
 
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch()
   const { isAuthenticated, user } = useAppSelector((state) => state.auth)
@@ -92,9 +82,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const filteredActions = getFilteredActions();
-
-  // Check if the current page is the timeline page, to conditionally render AppBar or other elements
-  const isTimelinePage = location.pathname === '/timeline' || location.pathname === '/'; // Assuming timeline is also the root
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
