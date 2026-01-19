@@ -1,13 +1,13 @@
 // src/components/UsageLogDetails.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
+import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Button,
   Divider, Chip, CircularProgress, List, ListItem, ListItemText as MuiListItemText,
-  Paper, IconButton, Tooltip, Alert,
+  Paper, Tooltip, Alert,
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import type { ChipProps } from '@mui/material';
-import { UsageLog, Project, TestProject, Chamber, Config as ConfigType } from '../types';
+import { UsageLog, Project, TestProject, Config as ConfigType } from '../types';
 import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -41,8 +41,6 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
   const [effectiveStatus, setEffectiveStatus] = useState<UsageLog['status'] | null>(null);
   const [displayError, setDisplayError] = useState<string | null>(null);
 
-  const fetchedAuxDataRef = useRef<boolean>(false); // To track if aux data (chambers, projects, testProjects) fetch was initiated
-
   // Effect 1: Trigger data fetching for the specific log and auxiliary data
   useEffect(() => {
     if (open && logId) {
@@ -52,20 +50,15 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
         dispatch(fetchUsageLogs());
       }
 
-      // Fetch auxiliary data only once per dialog open, or if arrays are empty
-      if (!fetchedAuxDataRef.current || (chambers.length === 0 && !loadingChambersGlobal)) {
-        if (!loadingChambersGlobal) dispatch(fetchChambers());
+      if (chambers.length === 0 && !loadingChambersGlobal) {
+        dispatch(fetchChambers());
       }
-      if (!fetchedAuxDataRef.current || (projects.length === 0 && !loadingProjectsGlobal)) {
-        if (!loadingProjectsGlobal) dispatch(fetchProjects());
+      if (projects.length === 0 && !loadingProjectsGlobal) {
+        dispatch(fetchProjects());
       }
-      if (!fetchedAuxDataRef.current || (testProjects.length === 0 && !loadingTestProjectsGlobal)) {
-        if (!loadingTestProjectsGlobal) dispatch(fetchTestProjects());
+      if (testProjects.length === 0 && !loadingTestProjectsGlobal) {
+        dispatch(fetchTestProjects());
       }
-      fetchedAuxDataRef.current = true; // Mark that aux data fetch has been attempted
-
-    } else if (!open) {
-      fetchedAuxDataRef.current = false; // Reset for next open
     }
   }, [
     open,

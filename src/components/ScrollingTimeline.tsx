@@ -589,9 +589,13 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   ]);
   // *** SCROLL LOGIC END ***
 
-  const allAppPrimaryDataLoading = chambersLoading || projectsLoading || testProjectsLoading || usageLogsDataLoading;
-  // ... (Loading and Error JSX returns - 保持不变) ...
-  if (allAppPrimaryDataLoading || (holidaysLoading && processedHolidays.size === 0 && dateHeaders.length > 0) ) {
+  const shouldBlockOnPrimaryLoading =
+    (chambersLoading && chambers.length === 0) ||
+    (projectsLoading && projects.length === 0) ||
+    (testProjectsLoading && testProjects.length === 0) ||
+    (usageLogsDataLoading && propsUsageLogs.length === 0);
+
+  if (shouldBlockOnPrimaryLoading || (holidaysLoading && processedHolidays.size === 0 && dateHeaders.length > 0) ) {
     return (
         <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 120px)', p: 3}}>
             <CircularProgress />
@@ -806,7 +810,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
               );
             })}
 
-            {(!propsUsageLogs || propsUsageLogs.length === 0) && chambers && chambers.length > 0 && !allAppPrimaryDataLoading && !holidaysLoading && (
+            {(!propsUsageLogs || propsUsageLogs.length === 0) && chambers && chambers.length > 0 && !shouldBlockOnPrimaryLoading && !holidaysLoading && (
               <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
                 <Typography variant="body2" color="textSecondary">当前时间范围无使用记录。</Typography>
               </Box>
