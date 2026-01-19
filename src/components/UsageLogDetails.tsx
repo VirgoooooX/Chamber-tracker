@@ -41,7 +41,6 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
   const [effectiveStatus, setEffectiveStatus] = useState<UsageLog['status'] | null>(null);
   const [displayError, setDisplayError] = useState<string | null>(null);
 
-  const prevLogIdRef = useRef<string | null>(null);
   const fetchedAuxDataRef = useRef<boolean>(false); // To track if aux data (chambers, projects, testProjects) fetch was initiated
 
   // Effect 1: Trigger data fetching for the specific log and auxiliary data
@@ -49,14 +48,9 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
     if (open && logId) {
       const logExistsInStore = usageLogs.some(l => l.id === logId);
 
-      // Fetch usageLogs IF:
-      // 1. The specific log is not in the store, AND we are not currently loading usageLogs
-      // OR 2. The logId has changed since the last time this effect ran for an open dialog
-      if ((!logExistsInStore || prevLogIdRef.current !== logId) && !loadingUsageLogsGlobal) {
-        // console.log(`[DetailsEffect1] Log ID ${logId} not found or changed. Fetching usageLogs.`);
+      if ((usageLogs.length === 0 || !logExistsInStore) && !loadingUsageLogsGlobal) {
         dispatch(fetchUsageLogs());
       }
-      prevLogIdRef.current = logId;
 
       // Fetch auxiliary data only once per dialog open, or if arrays are empty
       if (!fetchedAuxDataRef.current || (chambers.length === 0 && !loadingChambersGlobal)) {
@@ -71,7 +65,6 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
       fetchedAuxDataRef.current = true; // Mark that aux data fetch has been attempted
 
     } else if (!open) {
-      prevLogIdRef.current = null; // Reset when dialog closes
       fetchedAuxDataRef.current = false; // Reset for next open
     }
   }, [

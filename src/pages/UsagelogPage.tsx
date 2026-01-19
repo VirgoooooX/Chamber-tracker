@@ -14,15 +14,21 @@ import {
   Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import UsageLogForm from '../components/UsageLogForm';
 import UsageLogDetails from '../components/UsageLogDetails';
 import UsageLogList from '../components/UsageLogList'; // 1. 导入 UsageLogList
 import { UsageLog } from '../types'; // 导入 UsageLog 类型
 import { deleteUsageLog } from '../store/usageLogsSlice'; // 导入 deleteUsageLog
-import { useAppDispatch } from '../store/hooks'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { exportUsageLogsToXlsx } from '../utils/exportUsageLogsToXlsx'
 
 const UsageLogPage: React.FC = () => {
   const dispatch = useAppDispatch()
+  const { usageLogs, loading: loadingUsageLogs } = useAppSelector((state) => state.usageLogs)
+  const { chambers, loading: loadingChambers } = useAppSelector((state) => state.chambers)
+  const { projects, loading: loadingProjects } = useAppSelector((state) => state.projects)
+  const { testProjects, loading: loadingTestProjects } = useAppSelector((state) => state.testProjects)
 
   // --- State Management ---
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -99,6 +105,32 @@ const UsageLogPage: React.FC = () => {
     setSnackbarOpen(false);
   };
 
+  const handleExportAll = useCallback(() => {
+    const anyLoading = loadingUsageLogs || loadingChambers || loadingProjects || loadingTestProjects
+    if (anyLoading) {
+      setSnackbarMessage('数据加载中，稍后再试')
+      setSnackbarSeverity('error')
+      setSnackbarOpen(true)
+      return
+    }
+    if (usageLogs.length === 0) {
+      setSnackbarMessage('暂无使用记录可导出')
+      setSnackbarSeverity('error')
+      setSnackbarOpen(true)
+      return
+    }
+    try {
+      exportUsageLogsToXlsx({ usageLogs, chambers, projects, testProjects })
+      setSnackbarMessage('已开始导出 Excel')
+      setSnackbarSeverity('success')
+      setSnackbarOpen(true)
+    } catch (error: any) {
+      setSnackbarMessage(`导出失败: ${error?.message || '未知错误'}`)
+      setSnackbarSeverity('error')
+      setSnackbarOpen(true)
+    }
+  }, [chambers, loadingChambers, loadingProjects, loadingTestProjects, loadingUsageLogs, projects, testProjects, usageLogs])
+
   return (
     <Container maxWidth="xl">
       <Box py={4}>
@@ -112,14 +144,25 @@ const UsageLogPage: React.FC = () => {
           <Typography variant="h4" component="h1" gutterBottom sx={{ mb: { xs: 2, sm: 0 } }}>
             使用记录管理
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenForm()} // 点击打开表单进行添加
-          >
-            登记新使用记录
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, mb: { xs: 2, sm: 0 } }}>
+            <Button
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              onClick={handleExportAll}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              导出Excel
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenForm()}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              登记新使用记录
+            </Button>
+          </Box>
         </Box>
 
         {/* 2. 渲染 UsageLogList 组件并传递 props */}

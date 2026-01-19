@@ -1,5 +1,5 @@
 // src/pages/TimelinePage.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Box, Typography, CircularProgress, Button, Alert } from '@mui/material'; // Alert 导入
 import AddIcon from '@mui/icons-material/Add';
 import ScrollingTimeline from '../components/ScrollingTimeline';
@@ -8,6 +8,7 @@ import UsageLogForm from '../components/UsageLogForm';
 import { UsageLog } from '../types';
 import { fetchUsageLogs, removeConfigFromUsageLog } from '../store/usageLogsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'
 
 const TimelinePage: React.FC = () => {
     const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
@@ -19,6 +20,12 @@ const TimelinePage: React.FC = () => {
 
     const [isUsageLogFormOpen, setIsUsageLogFormOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<UsageLog | null>(null);
+
+    const overdueCount = useMemo(() => {
+        return usageLogs.reduce((count, log) => {
+            return getEffectiveUsageLogStatus(log) === 'overdue' ? count + 1 : count
+        }, 0)
+    }, [usageLogs])
 
     const handleViewUsageLog = useCallback((logId: string) => {
         setSelectedLogId(logId);
@@ -119,6 +126,14 @@ const TimelinePage: React.FC = () => {
                         登记新使用记录
                     </Button>
                 </Box>
+
+                {overdueCount > 0 && (
+                    <Box sx={{ px: 2, pb: 1, backgroundColor: '#fff', borderBottom: '1px solid #eee', flexShrink: 0 }}>
+                        <Alert severity="error" variant="filled">
+                            当前有 {overdueCount} 条超时未完成使用记录，请及时处理
+                        </Alert>
+                    </Box>
+                )}
 
                 {/* 时间轴主体内容区域 */}
                 <Box

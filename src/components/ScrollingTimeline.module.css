@@ -8,21 +8,54 @@
   background-color: #f9f9f9;
 }
 
-.timelineOuterWrapper {
-  display: flex;
+.timelineScrollContainer {
   flex-grow: 1;
-  overflow: hidden; /* Important: parent of scrolling areas */
-  position: relative; /* For absolute positioning of messages if needed */
+  overflow: auto;
+  position: relative;
+  background-color: #ffffff;
 }
 
-.chamberList {
+.timelineHeaderRow {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #d0d0d0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.timelineHeaderChamberCell {
   flex-shrink: 0;
-  width: var(--chamber-name-width); /* Controlled by JS const CHAMBER_NAME_WIDTH_PX */
+  position: sticky;
+  left: 0;
+  z-index: 35;
   background-color: #f5f5f5;
   border-right: 1px solid #e0e0e0;
-  overflow-y: scroll;   /* Always show scrollbar to prevent layout shifts */
-  overflow-x: hidden;
-  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.timelineHeaderDates {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.timelineBodyRow {
+  display: flex;
+  position: relative;
+}
+
+.timelineChamberColumn {
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 25;
+  background-color: #f5f5f5;
+  border-right: 1px solid #e0e0e0;
   box-sizing: border-box;
 }
 
@@ -43,28 +76,6 @@
 }
 .chamberRowName:last-child {
   border-bottom: none;
-}
-
-.timelineScrollableWrapper {
-  flex-grow: 1; /* Takes remaining width */
-  overflow-x: auto;   /* Allows horizontal scrolling for dates */
-  overflow-y: scroll;   /* Always show scrollbar to prevent layout shifts */
-  position: relative;
-  background-color: #ffffff;
-  display: flex;
-  flex-direction: column; /* Stack header and grid content vertically */
-}
-
-.timelineHeader {
-  display: flex;
-  position: sticky; /* Sticks to the top of .timelineScrollableWrapper */
-  top: 0;
-  background-color: #f0f0f0;
-  z-index: 3; /* Above grid lines and bars */
-  border-bottom: 1px solid #d0d0d0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  flex-shrink: 0; /* Header should not shrink if content below is large */
-  /* width is dynamic via inline style from JS */
 }
 
 .timelineDateHeader {
@@ -214,7 +225,7 @@
 .timelineBar:hover {
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-  z-index: 10;
+  z-index: 5;
 }
 
 .timelineBarText {

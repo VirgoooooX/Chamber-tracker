@@ -338,13 +338,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   const totalTimelineWidth = useMemo(() => dateHeaders.length * DAY_WIDTH_PX, [dateHeaders.length]);
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
-  const chamberListRef = useRef<HTMLDivElement>(null);
-  const gridContentRef = useRef<HTMLDivElement>(null);
-  const timelineScrollableWrapperRef = useRef<HTMLDivElement>(null);
   const initialScrollPerformedForCurrentViewRef = useRef(false);
-  const isSyncingChamberScroll = useRef(false);
-  const isSyncingGridScroll = useRef(false);
-  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchAndProcessHolidaysForYearInternal = useCallback(async (year: number, region: string): Promise<Map<string, HolidayDetail>> => { /* ... (保持不变) ... */
     const yearHolidaysMap = new Map<string, HolidayDetail>();
@@ -546,40 +540,6 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     initialScrollPerformedForCurrentViewRef.current = false;
   }, [dateHeaders]);
 
-  const handleChamberScroll = useCallback(() => {
-    if (isSyncingGridScroll.current) return;
-
-    const chamberScroller = chamberListRef.current;
-    const gridScroller = timelineScrollableWrapperRef.current;
-
-    if (chamberScroller && gridScroller) {
-      isSyncingChamberScroll.current = true;
-      gridScroller.scrollTop = chamberScroller.scrollTop;
-
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-      scrollTimeout.current = setTimeout(() => {
-        isSyncingChamberScroll.current = false;
-      }, 100); // 100ms的防抖时间
-    }
-  }, []);
-
-  const handleGridScroll = useCallback(() => {
-    if (isSyncingChamberScroll.current) return;
-
-    const chamberScroller = chamberListRef.current;
-    const gridScroller = timelineScrollableWrapperRef.current;
-
-    if (chamberScroller && gridScroller) {
-      isSyncingGridScroll.current = true;
-      chamberScroller.scrollTop = gridScroller.scrollTop;
-
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-      scrollTimeout.current = setTimeout(() => {
-        isSyncingGridScroll.current = false;
-      }, 100); // 100ms的防抖时间
-    }
-  }, []); 
-
   useEffect(() => {
     const container = timelineContainerRef.current;
     const allDataLoaded = !chambersLoading && !projectsLoading && !testProjectsLoading && !usageLogsDataLoading && !holidaysLoading;
@@ -598,16 +558,17 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
 
     if (todayIndex !== -1) {
       const containerWidth = container.offsetWidth;
-      const cellsThatFit = Math.floor(containerWidth / DAY_WIDTH_PX);
+      const visibleGridWidth = Math.max(0, containerWidth - CHAMBER_NAME_WIDTH_PX);
+      const cellsThatFit = Math.floor(visibleGridWidth / DAY_WIDTH_PX);
       const desiredTodayCellOffset = cellsThatFit > 2 ? 1 : (cellsThatFit > 1 ? 0 : 0); 
-      targetScrollPosition = (todayIndex - desiredTodayCellOffset) * DAY_WIDTH_PX;
+      targetScrollPosition = CHAMBER_NAME_WIDTH_PX + (todayIndex - desiredTodayCellOffset) * DAY_WIDTH_PX;
       targetScrollPosition = Math.max(0, targetScrollPosition);
-      const maxScroll = totalTimelineWidth - containerWidth;
+      const maxScroll = (CHAMBER_NAME_WIDTH_PX + totalTimelineWidth) - containerWidth;
       targetScrollPosition = Math.min(targetScrollPosition, maxScroll > 0 ? maxScroll : 0);
     } else {
-      targetScrollPosition = (totalTimelineWidth / 2) - (container.offsetWidth / 2);
+      targetScrollPosition = (CHAMBER_NAME_WIDTH_PX + (totalTimelineWidth / 2)) - (container.offsetWidth / 2);
       targetScrollPosition = Math.max(0, targetScrollPosition);
-      const maxScroll = totalTimelineWidth - container.offsetWidth;
+      const maxScroll = (CHAMBER_NAME_WIDTH_PX + totalTimelineWidth) - container.offsetWidth;
       targetScrollPosition = Math.min(targetScrollPosition, maxScroll > 0 ? maxScroll : 0);
     }
 
@@ -660,74 +621,65 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
 
   return (
     <div className={styles.timelinePageContainer}>
-      <div className={styles.timelineOuterWrapper}>
-        <div 
-          ref={chamberListRef} 
-          className={styles.chamberList} 
-          style={{ paddingTop: `${HEADER_HEIGHT_PX}px`, ['--chamber-name-width' as any]: `${CHAMBER_NAME_WIDTH_PX}px` }}
-          onScroll={handleChamberScroll}
-        >
-          {/* ... (chamber list rendering - 保持不变) ... */}
-          {chambers && chambers.map((chamber) => (
-            <div key={chamber.id} className={styles.chamberRowName} style={{ height: `${getChamberRowHeight(chamber.id)}px` }}>
-              {chamber.name}
-            </div>
-          ))}
-           {(!chambers || chambers.length === 0) && !chambersLoading && (
-            <Box sx={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p:1, textAlign: 'center'}}>
-                <Typography variant="caption" color="textSecondary">暂无环境箱</Typography>
-            </Box>
-           )}
-        </div>
-
-        <div 
-          ref={el => {
-            (timelineScrollableWrapperRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-            (timelineContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-          }}
-          className={styles.timelineScrollableWrapper}
-          onScroll={handleGridScroll}
+      <div
+        ref={timelineContainerRef}
+        className={styles.timelineScrollContainer}
+      >
+        <div
+          className={styles.timelineHeaderRow}
+          style={{ width: `${CHAMBER_NAME_WIDTH_PX + totalTimelineWidth}px`, height: `${HEADER_HEIGHT_PX}px` }}
         >
           <div
-            className={styles.timelineHeader}
-            style={{
-              width: `${totalTimelineWidth}px`,
-              height: `${HEADER_HEIGHT_PX}px`,
-              display: 'flex',
-            }}
+            className={styles.timelineHeaderChamberCell}
+            style={{ width: `${CHAMBER_NAME_WIDTH_PX}px`, height: `${HEADER_HEIGHT_PX}px` }}
           >
-            <Box sx={{ display: 'flex', flexGrow: 1 }}>
-              {dateHeaders.map((dateHeaderItem, index) => {
-                const classification = getDayClassification(dateHeaderItem);
-                let headerClassName = styles.timelineDateHeader;
-                if (classification.type === 'publicHolidayHighWage') { /* ... */ headerClassName += ` ${styles.publicHolidayStrongRedHeader}`; }
-                else if (classification.type === 'publicHolidayLowWage') { /* ... */ headerClassName += ` ${styles.publicHolidaySoftRedHeader}`; }
-                else if (classification.type === 'weekendRest') { /* ... */ headerClassName += ` ${styles.weekendHeader}`; }
-                else if (classification.type === 'workdayOverride') { /* ... */ headerClassName += ` ${styles.workdayOnWeekendHeader}`; }
-                if (isEqual(dateFnsStartOfDay(dateHeaderItem), dateFnsStartOfDay(new Date()))) {
-                    headerClassName += ` ${styles.todayHeader}`;
-                }
-                return (
-                  <div
-                    key={index}
-                    className={headerClassName}
-                    style={{ minWidth: `${DAY_WIDTH_PX}px`, width: `${DAY_WIDTH_PX}px` }}
-                    title={classification.name || ''}
-                  >
-                    <div className={styles.dateDisplay}>{formatDateHeader(dateHeaderItem)}</div>
-                    {/* 恢复为“白班”和“夜班”文本显示 */}
-                    <div className={styles.shiftContainer}>
-                      <div className={styles.dayShift}>白班</div>
-                      <div className={styles.nightShift}>夜班</div>
-                    </div>
+            环境箱
+          </div>
+          <div className={styles.timelineHeaderDates} style={{ width: `${totalTimelineWidth}px` }}>
+            {dateHeaders.map((dateHeaderItem, index) => {
+              const classification = getDayClassification(dateHeaderItem);
+              let headerClassName = styles.timelineDateHeader;
+              if (classification.type === 'publicHolidayHighWage') { headerClassName += ` ${styles.publicHolidayStrongRedHeader}`; }
+              else if (classification.type === 'publicHolidayLowWage') { headerClassName += ` ${styles.publicHolidaySoftRedHeader}`; }
+              else if (classification.type === 'weekendRest') { headerClassName += ` ${styles.weekendHeader}`; }
+              else if (classification.type === 'workdayOverride') { headerClassName += ` ${styles.workdayOnWeekendHeader}`; }
+              if (isEqual(dateFnsStartOfDay(dateHeaderItem), dateFnsStartOfDay(new Date()))) {
+                headerClassName += ` ${styles.todayHeader}`;
+              }
+              return (
+                <div
+                  key={index}
+                  className={headerClassName}
+                  style={{ minWidth: `${DAY_WIDTH_PX}px`, width: `${DAY_WIDTH_PX}px` }}
+                  title={classification.name || ''}
+                >
+                  <div className={styles.dateDisplay}>{formatDateHeader(dateHeaderItem)}</div>
+                  <div className={styles.shiftContainer}>
+                    <div className={styles.dayShift}>白班</div>
+                    <div className={styles.nightShift}>夜班</div>
                   </div>
-                );
-              })}
-            </Box>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className={styles.timelineBodyRow} style={{ width: `${CHAMBER_NAME_WIDTH_PX + totalTimelineWidth}px` }}>
+          <div className={styles.timelineChamberColumn} style={{ width: `${CHAMBER_NAME_WIDTH_PX}px` }}>
+            {chambers && chambers.map((chamber) => (
+              <div key={chamber.id} className={styles.chamberRowName} style={{ height: `${getChamberRowHeight(chamber.id)}px` }}>
+                {chamber.name}
+              </div>
+            ))}
+            {(!chambers || chambers.length === 0) && !chambersLoading && (
+              <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 1, textAlign: 'center' }}>
+                <Typography variant="caption" color="textSecondary">暂无环境箱</Typography>
+              </Box>
+            )}
           </div>
 
-          <div ref={gridContentRef} className={styles.timelineGridContent} style={{ width: `${totalTimelineWidth}px`, minHeight: `${totalTimelineGridHeight}px` }}>
-            {dateHeaders.map((dayCellStartTime, dayIndex) => { /* ... (背景渲染 - 保持不变) ... */
+          <div className={styles.timelineGridContent} style={{ width: `${totalTimelineWidth}px`, minHeight: `${totalTimelineGridHeight}px` }}>
+            {dateHeaders.map((dayCellStartTime, dayIndex) => {
               const classification = getDayClassification(dayCellStartTime);
               let dayBgClass = styles.timelineDayBackground;
               if (classification.type === 'publicHolidayHighWage') {
@@ -750,13 +702,19 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                 />
               );
             })}
-            {chambers && chambers.map((chamber, _chamberIndex) => { /* ... (行背景渲染 - 保持不变) ... */
-                const topOffset = chamberRowTopById.get(chamber.id) || 0;
-                return ( <div key={`row-bg-${chamber.id}`} className={styles.timelineRowBackground} style={{ top: `${topOffset}px`, height: `${getChamberRowHeight(chamber.id)}px`, width: `${totalTimelineWidth}px` }} /> );
+
+            {chambers && chambers.map((chamber) => {
+              const topOffset = chamberRowTopById.get(chamber.id) || 0;
+              return (
+                <div
+                  key={`row-bg-${chamber.id}`}
+                  className={styles.timelineRowBackground}
+                  style={{ top: `${topOffset}px`, height: `${getChamberRowHeight(chamber.id)}px`, width: `${totalTimelineWidth}px` }}
+                />
+              );
             })}
 
-            {/* UsageLog Bars - 使用修改后的单条连续渲染逻辑 */}
-            {chambers && chambers.map((chamber, _chamberIndex) => {
+            {chambers && chambers.map((chamber) => {
               const layoutInfo = chamberLayouts.get(chamber.id);
               const logsToRender = layoutInfo ? layoutInfo.logsWithTracks : [];
               const rowTopOffset = chamberRowTopById.get(chamber.id) || 0;
@@ -767,11 +725,10 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                     const originalLog = usageLogById.get(logDisplayItem.originalLogId);
                     if (!originalLog) return null;
 
-                    // 使用 timelineViewActualStart 和 timelineViewActualEnd
                     const { left, width, display } = calculateBarPositionAndWidth(
                       originalLog,
-                      timelineViewActualStart, // 使用整个视图的7AM起点
-                      timelineViewActualEnd,   // 使用整个视图的7AM终点
+                      timelineViewActualStart,
+                      timelineViewActualEnd,
                       logDisplayItem.effectiveStatus
                     );
 
@@ -781,38 +738,38 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                     const barTextParts: string[] = [];
                     if (logDisplayItem.projectName) barTextParts.push(logDisplayItem.projectName);
                     if (logDisplayItem.configName && logDisplayItem.configName !== '无特定配置' && logDisplayItem.configName !== '未知配置') {
-                        barTextParts.push(logDisplayItem.configName);
+                      barTextParts.push(logDisplayItem.configName);
                     }
                     if (originalLog.selectedWaterfall) {
-                        barTextParts.push(`WF:${originalLog.selectedWaterfall}`);
+                      barTextParts.push(`WF:${originalLog.selectedWaterfall}`);
                     }
                     if (logDisplayItem.testProjectName) {
-                        barTextParts.push(logDisplayItem.testProjectName);
+                      barTextParts.push(logDisplayItem.testProjectName);
                     }
                     const barText = barTextParts.length > 0 ? barTextParts.join(' - ') : (originalLog.user || '使用记录');
                     const barTopPosition = logDisplayItem.trackIndex * ITEM_BAR_TOTAL_HEIGHT + ITEM_BAR_VERTICAL_MARGIN;
 
                     return (
                       <Tooltip
-                        key={logDisplayItem.displayId} // 单个log只有一个bar，所以用displayId
-                        title={ /* ... (Tooltip 内容保持不变) ... */ 
-                            <React.Fragment>
-                                <Typography variant="subtitle2" gutterBottom>{barText}</Typography>
-                                <Typography variant="caption">
-                                    用户: {originalLog.user}<br />
-                                    开始: {format(parseISO(originalLog.startTime), 'yyyy-MM-dd HH:mm', { locale: zhCN })}<br />
-                                    结束: {originalLog.endTime ? format(parseISO(originalLog.endTime), 'yyyy-MM-dd HH:mm', { locale: zhCN }) : (logDisplayItem.effectiveStatus === 'in-progress' || logDisplayItem.effectiveStatus === 'overdue' ? '进行中/已超时' : '未设定')}<br />
-                                    状态: {logDisplayItem.effectiveStatus}
-                                    {originalLog.notes && <><br/>备注: {originalLog.notes.substring(0,100)}{originalLog.notes.length > 100 && '...'}</>}
-                                </Typography>
-                            </React.Fragment>
+                        key={logDisplayItem.displayId}
+                        title={
+                          <React.Fragment>
+                            <Typography variant="subtitle2" gutterBottom>{barText}</Typography>
+                            <Typography variant="caption">
+                              用户: {originalLog.user}<br />
+                              开始: {format(parseISO(originalLog.startTime), 'yyyy-MM-dd HH:mm', { locale: zhCN })}<br />
+                              结束: {originalLog.endTime ? format(parseISO(originalLog.endTime), 'yyyy-MM-dd HH:mm', { locale: zhCN }) : (logDisplayItem.effectiveStatus === 'in-progress' || logDisplayItem.effectiveStatus === 'overdue' ? '进行中/已超时' : '未设定')}<br />
+                              状态: {logDisplayItem.effectiveStatus}
+                              {originalLog.notes && <><br />备注: {originalLog.notes.substring(0, 100)}{originalLog.notes.length > 100 && '...'}</>}
+                            </Typography>
+                          </React.Fragment>
                         }
                         placement="top"
                         arrow
                       >
                         <div
-                            className={styles.timelineBar}
-                            style={{
+                          className={styles.timelineBar}
+                          style={{
                             left: `${left}px`,
                             width: `${width}px`,
                             backgroundColor: styling.backgroundColor,
@@ -820,27 +777,27 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                             color: styling.textColor,
                             height: `${ITEM_BAR_HEIGHT}px`,
                             top: `${barTopPosition}px`,
-                            }}
-                            onClick={(e) => {
-                                if ((e.target as HTMLElement).closest(`.${styles.timelineBarDeleteButton}`)) return;
-                                onViewUsageLog(logDisplayItem.originalLogId);
-                            }}
+                          }}
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest(`.${styles.timelineBarDeleteButton}`)) return;
+                            onViewUsageLog(logDisplayItem.originalLogId);
+                          }}
                         >
-                            <span className={styles.timelineBarText}>{barText}</span>
-                            {onDeleteUsageLog && (
+                          <span className={styles.timelineBarText}>{barText}</span>
+                          {onDeleteUsageLog && (
                             <button
-                                className={styles.timelineBarDeleteButton}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onDeleteUsageLog && logDisplayItem.configId) {
-                                        onDeleteUsageLog(logDisplayItem.originalLogId, logDisplayItem.configId);
-                                    }
-                                }}
-                                title="删除此记录"
+                              className={styles.timelineBarDeleteButton}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onDeleteUsageLog && logDisplayItem.configId) {
+                                  onDeleteUsageLog(logDisplayItem.originalLogId, logDisplayItem.configId);
+                                }
+                              }}
+                              title="删除此记录"
                             >
-                                <DeleteIconSvg />
+                              <DeleteIconSvg />
                             </button>
-                            )}
+                          )}
                         </div>
                       </Tooltip>
                     );
@@ -848,10 +805,11 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                 </div>
               );
             })}
-             {(!propsUsageLogs || propsUsageLogs.length === 0) && chambers && chambers.length > 0 && !allAppPrimaryDataLoading && !holidaysLoading && ( /* ... (无记录提示) ... */
-               <Box sx={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center'}}>
-                    <Typography variant="body2" color="textSecondary">当前时间范围无使用记录。</Typography>
-               </Box>
+
+            {(!propsUsageLogs || propsUsageLogs.length === 0) && chambers && chambers.length > 0 && !allAppPrimaryDataLoading && !holidaysLoading && (
+              <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                <Typography variant="body2" color="textSecondary">当前时间范围无使用记录。</Typography>
+              </Box>
             )}
           </div>
         </div>
