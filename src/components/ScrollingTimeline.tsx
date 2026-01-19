@@ -1,5 +1,5 @@
 // src/components/ScrollingTimeline.tsx
-import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback, useLayoutEffect, useTransition } from 'react';
 import { UsageLog, Project, TestProject } from '../types';
 import { fetchChambers } from '../store/chambersSlice';
 import { fetchProjects } from '../store/projectsSlice';
@@ -8,8 +8,8 @@ import { useAppDispatch, useAppSelector } from '../store/hooks'
 import styles from './ScrollingTimeline.module.css';
 import {
   format, addDays, eachDayOfInterval, startOfDay as dateFnsStartOfDay,
-  differenceInMinutes, max, min, getDay, parseISO, isEqual, getYear,
-  setHours, setMinutes, setSeconds, setMilliseconds, addHours, // 确保 addHours 已导入
+  differenceInMinutes, max, min, getDay, parseISO, isEqual, getYear, differenceInCalendarDays,
+  setHours, setMinutes, setSeconds, setMilliseconds, addHours, addMonths,
 } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers';
@@ -76,15 +76,15 @@ export const getBarStylingByEffectiveStatus = (status: UsageLog['status']): Stat
   }
 };
 
-export const generateDateHeaders = (currentDate: Date, daysBefore: number, daysAfter: number) => {
+export const generateDateHeaders = (currentDate: Date, monthsBefore: number, monthsAfter: number) => {
   let baseDateForCurrentView = setMilliseconds(setSeconds(setMinutes(setHours(dateFnsStartOfDay(currentDate), CUSTOM_DAY_START_HOUR), 0), 0), 0);
 
   if (currentDate.getHours() < CUSTOM_DAY_START_HOUR) {
     baseDateForCurrentView = addDays(baseDateForCurrentView, -1);
   }
   
-  const viewStartDate = addDays(baseDateForCurrentView, -daysBefore);
-  const viewEndDate = addDays(baseDateForCurrentView, daysAfter);
+  const viewStartDate = addMonths(baseDateForCurrentView, -monthsBefore);
+  const viewEndDate = addMonths(baseDateForCurrentView, monthsAfter);
   
   const intervalCalendarDays = eachDayOfInterval({ 
     start: dateFnsStartOfDay(viewStartDate),
@@ -92,6 +92,25 @@ export const generateDateHeaders = (currentDate: Date, daysBefore: number, daysA
   });
   
   return intervalCalendarDays.map(calendarDay => {
+    return setMilliseconds(setSeconds(setMinutes(setHours(calendarDay, CUSTOM_DAY_START_HOUR), 0), 0), 0);
+  });
+};
+
+const getTimelineBaseDate = (currentDate: Date) => {
+  let baseDate = setMilliseconds(setSeconds(setMinutes(setHours(dateFnsStartOfDay(currentDate), CUSTOM_DAY_START_HOUR), 0), 0), 0);
+  if (currentDate.getHours() < CUSTOM_DAY_START_HOUR) {
+    baseDate = addDays(baseDate, -1);
+  }
+  return baseDate;
+};
+
+const generateDateHeadersFromRange = (rangeStart: Date, rangeEnd: Date) => {
+  const intervalCalendarDays = eachDayOfInterval({
+    start: dateFnsStartOfDay(rangeStart),
+    end: dateFnsStartOfDay(rangeEnd),
+  });
+
+  return intervalCalendarDays.map((calendarDay) => {
     return setMilliseconds(setSeconds(setMinutes(setHours(calendarDay, CUSTOM_DAY_START_HOUR), 0), 0), 0);
   });
 };
@@ -326,19 +345,62 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   const { testProjects, loading: testProjectsLoading, error: testProjectsError } = useAppSelector((state) => state.testProjects)
   const { loading: usageLogsDataLoading } = useAppSelector((state) => state.usageLogs)
 
-  const [currentDateForTimeline, _setCurrentDateForTimeline] = useState(new Date());
-  const daysBefore = 7;
-  const daysAfter = 14;
+  const initialTimelineBaseDate = useMemo(() => getTimelineBaseDate(new Date()), []);
+  const [rangeStart, setRangeStart] = useState(() => addMonths(initialTimelineBaseDate, -1));
+  const [rangeEnd, setRangeEnd] = useState(() => addMonths(initialTimelineBaseDate, 1));
 
   const [processedHolidays, setProcessedHolidays] = useState<Map<string, HolidayDetail>>(new Map());
   const [holidaysLoading, setHolidaysLoading] = useState(true);
   const [holidaysError, setHolidaysError] = useState<string | null>(null);
 
-  const dateHeaders = useMemo(() => generateDateHeaders(currentDateForTimeline, daysBefore, daysAfter), [currentDateForTimeline, daysBefore, daysAfter]);
+  const dateHeaders = useMemo(() => generateDateHeadersFromRange(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
   const totalTimelineWidth = useMemo(() => dateHeaders.length * DAY_WIDTH_PX, [dateHeaders.length]);
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const initialScrollPerformedForCurrentViewRef = useRef(false);
+  const desiredScrollLeftAfterPrependRef = useRef<number | null>(null);
+  const isExtendingLeftRef = useRef(false);
+  const isExtendingRightRef = useRef(false);
+  const [, startTransition] = useTransition();
+
+  const handleTimelineScroll = useCallback(() => {
+    const container = timelineContainerRef.current;
+    if (!container) return;
+
+    const thresholdPx = DAY_WIDTH_PX * 10;
+    if (container.scrollLeft < thresholdPx && !isExtendingLeftRef.current) {
+      isExtendingLeftRef.current = true;
+      const beforeExtendScrollLeft = container.scrollLeft;
+      startTransition(() => {
+        setRangeStart((prevStart) => {
+          const nextStart = addMonths(prevStart, -1);
+          const addedDays = differenceInCalendarDays(prevStart, nextStart);
+          desiredScrollLeftAfterPrependRef.current = beforeExtendScrollLeft + addedDays * DAY_WIDTH_PX;
+          return nextStart;
+        });
+      });
+    }
+
+    if (
+      container.scrollLeft + container.clientWidth > container.scrollWidth - thresholdPx &&
+      !isExtendingRightRef.current
+    ) {
+      isExtendingRightRef.current = true;
+      startTransition(() => {
+        setRangeEnd((prevEnd) => addMonths(prevEnd, 1));
+      });
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const container = timelineContainerRef.current;
+    if (container && desiredScrollLeftAfterPrependRef.current !== null) {
+      container.scrollLeft = desiredScrollLeftAfterPrependRef.current;
+      desiredScrollLeftAfterPrependRef.current = null;
+    }
+    isExtendingLeftRef.current = false;
+    isExtendingRightRef.current = false;
+  }, [dateHeaders.length]);
 
   const fetchAndProcessHolidaysForYearInternal = useCallback(async (year: number, region: string): Promise<Map<string, HolidayDetail>> => { /* ... (保持不变) ... */
     const yearHolidaysMap = new Map<string, HolidayDetail>();
@@ -535,11 +597,6 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     return map;
   }, [chambers, getChamberRowHeight]);
 
-  // *** SCROLL LOGIC (保持上一版修复后的逻辑) ***
-  useEffect(() => {
-    initialScrollPerformedForCurrentViewRef.current = false;
-  }, [dateHeaders]);
-
   useEffect(() => {
     const container = timelineContainerRef.current;
     const allDataLoaded = !chambersLoading && !projectsLoading && !testProjectsLoading && !usageLogsDataLoading && !holidaysLoading;
@@ -577,10 +634,6 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
         container.scrollLeft = targetScrollPosition;
       }
       initialScrollPerformedForCurrentViewRef.current = true;
-    } else {
-      if (container.scrollLeft === 0 && targetScrollPosition > 0) {
-        container.scrollLeft = targetScrollPosition;
-      }
     }
   }, [
     dateHeaders, 
@@ -628,6 +681,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
       <div
         ref={timelineContainerRef}
         className={styles.timelineScrollContainer}
+        onScroll={handleTimelineScroll}
       >
         <div
           className={styles.timelineHeaderRow}
