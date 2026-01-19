@@ -14,7 +14,7 @@ import type { ChipProps } from '@mui/material';
 
 import { UsageLog, Project, Config as ConfigType } from '../types';
 import { fetchUsageLogs, markLogAsCompleted } from '../store/usageLogsSlice'; // 导入 markLogAsCompleted
-import { fetchChambers } from '../store/chambersSlice';
+import { fetchAssetsByType } from '../store/assetsSlice'
 import { fetchProjects } from '../store/projectsSlice';
 import { fetchTestProjects } from '../store/testProjectsSlice';
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'; // 导入辅助函数
@@ -33,7 +33,7 @@ const UsageLogList: React.FC<UsageLogListProps> = ({ onViewDetails, onEdit, onDe
   const [pendingCompleteLogId, setPendingCompleteLogId] = useState<string | null>(null);
 
   const { usageLogs, loading: loadingUsageLogs, error: usageLogsError } = useAppSelector((state) => state.usageLogs)
-  const { chambers, loading: loadingChambers, error: chambersError } = useAppSelector((state) => state.chambers)
+  const { assets: chambers, loading: loadingChambers, error: chambersError } = useAppSelector((state) => state.assets)
   const { projects, loading: loadingProjects, error: projectsError } = useAppSelector((state) => state.projects)
   const { testProjects, loading: loadingTestProjects, error: testProjectsError } = useAppSelector((state) => state.testProjects)
 
@@ -53,7 +53,9 @@ const UsageLogList: React.FC<UsageLogListProps> = ({ onViewDetails, onEdit, onDe
       if (chambers.length > 0) {
         dataFetchedRef.current.chambers = true;
       } else if (!loadingChambers) {
-        dispatch(fetchChambers()).finally(() => { dataFetchedRef.current.chambers = true; });
+        dispatch(fetchAssetsByType('chamber')).finally(() => {
+          dataFetchedRef.current.chambers = true
+        })
       }
     }
     if (!dataFetchedRef.current.projects) {
@@ -165,7 +167,7 @@ const UsageLogList: React.FC<UsageLogListProps> = ({ onViewDetails, onEdit, onDe
             onClick={() => {
                 dataFetchedRef.current = { usageLogs: false, chambers: false, projects: false, testProjects: false };
                 dispatch(fetchUsageLogs());
-                dispatch(fetchChambers());
+                dispatch(fetchAssetsByType('chamber'));
                 dispatch(fetchProjects());
                 dispatch(fetchTestProjects());
             }}

@@ -7,11 +7,32 @@ export interface User {
   password?: string
 }
 
+export type AssetType = 'chamber'
+
+export type AssetStatus = 'available' | 'in-use' | 'maintenance'
+
+export interface Asset {
+  id: string
+  type: AssetType
+  name: string
+  status: AssetStatus
+  description?: string
+  tags?: string[]
+  location?: string
+  serialNumber?: string
+  manufacturer?: string
+  model?: string
+  owner?: string
+  calibrationDate?: string
+  createdAt: string
+  updatedAt?: string
+}
+
 export interface Chamber {
   id: string
   name: string
   description?: string
-  status: 'available' | 'in-use' | 'maintenance'
+  status: AssetStatus
   manufacturer: string
   model: string
   calibrationDate?: string
@@ -58,4 +79,3 @@ export interface UsageLog {
   selectedWaterfall?: string
   createdAt: string
 }
-

@@ -18,26 +18,24 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'; // 新增
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'; // 新增
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'; // 新增
 import { zhCN } from 'date-fns/locale'; // 新增
-import { Chamber } from '../types';
-import { addChamber, updateChamber } from '../store/chambersSlice';
+import { Asset, AssetStatus } from '../types'
+import { addAsset, updateAsset } from '../store/assetsSlice'
 import { useAppDispatch } from '../store/hooks'
 
 interface ChamberFormProps {
   open: boolean;
   onClose: () => void;
-  chamber?: Chamber;
+  chamber?: Asset;
 }
 
 const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => {
   const dispatch = useAppDispatch()
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<'available' | 'in-use' | 'maintenance'>('available');
+  const [status, setStatus] = useState<AssetStatus>('available')
   const [manufacturer, setManufacturer] = useState(''); // 新增
   const [model, setModel] = useState(''); // 新增
   const [calibrationDate, setCalibrationDate] = useState<Date | null>(null); // 新增
-  // createdAt 通常在创建时由服务处理，或编辑时加载
-  const [createdAt, setCreatedAt] = useState<Date>(new Date()); 
 
   // 表单验证
   const [errors, setErrors] = useState({
@@ -55,7 +53,6 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
       setModel(chamber.model || '');
       // Parse date strings back to Date objects
       setCalibrationDate(chamber.calibrationDate ? new Date(chamber.calibrationDate) : null);
-      setCreatedAt(new Date(chamber.createdAt)); // createdAt will always be a string from the store
     } else {
       // 重置表单
       setName('');
@@ -64,7 +61,6 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
       setManufacturer(''); // 新增
       setModel(''); // 新增
       setCalibrationDate(null); // 新增
-      setCreatedAt(new Date()); // 重置创建时间为当前
       setErrors({ name: false, manufacturer: false, model: false }); // 重置错误状态
     }
   }, [chamber, open]);
@@ -85,7 +81,8 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
       return;
     }
     
-    const chamberData = {
+    const chamberData: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> = {
+      type: 'chamber',
       name,
       description: description || undefined,
       status,
@@ -93,20 +90,31 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
       model, // 新增
       // Convert dates to ISO strings for serialization
       calibrationDate: calibrationDate ? calibrationDate.toISOString() : undefined,
-      createdAt: (chamber ? createdAt : new Date()).toISOString(),
     };
     
     if (chamber && chamber.id) {
-      dispatch(updateChamber({ id: chamber.id, chamber: chamberData as Partial<Chamber> }));
+      dispatch(
+        updateAsset({
+          id: chamber.id,
+          changes: {
+            name: chamberData.name,
+            description: chamberData.description,
+            status: chamberData.status,
+            manufacturer: chamberData.manufacturer,
+            model: chamberData.model,
+            calibrationDate: chamberData.calibrationDate,
+          },
+        })
+      )
     } else {
-      dispatch(addChamber(chamberData as Omit<Chamber, 'id'>));
+      dispatch(addAsset(chamberData))
     }
     
     onClose();
   };
 
   const handleStatusChange = (event: SelectChangeEvent) => {
-    setStatus(event.target.value as 'available' | 'in-use' | 'maintenance');
+    setStatus(event.target.value as AssetStatus)
   };
 
   return (

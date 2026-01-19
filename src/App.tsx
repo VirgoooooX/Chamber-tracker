@@ -2,14 +2,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import DashboardPage from './pages/DashboardPage'
 import TimelinePage from './pages/TimelinePage';
 import ChambersPage from './pages/ChambersPage';
 import ProjectsPage from './pages/ProjectsPage';
 import TestProjectsPage from './pages/TestProjectsPage';
 import UsageLogPage from './pages/UsagelogPage';
+import AlertsPage from './pages/AlertsPage'
+import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'; // 新增
 import PrivateRoute from './components/PrivateRoute'; // 新增
 import { loadUserFromStorage } from './store/authSlice'; // 新增
+import { loadSettingsFromStorage } from './store/settingsSlice'
 import { useEffect } from 'react'; // 新增
 import { useAppDispatch } from './store/hooks'
 
@@ -18,6 +22,7 @@ function App() {
 
   useEffect(() => { // 新增: 应用启动时尝试从 localStorage 加载用户信息
     dispatch(loadUserFromStorage());
+    dispatch(loadSettingsFromStorage())
   }, [dispatch]);
 
   return (
@@ -28,9 +33,12 @@ function App() {
 
           {/* 受保护的路由 */}
           <Route element={<PrivateRoute />}> {/* 所有需要登录的页面 */}
-            <Route path="/" element={<Navigate replace to="/timeline" />} />
+            <Route path="/" element={<Navigate replace to="/dashboard" />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/usage-logs" element={<UsageLogPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
           <Route element={<PrivateRoute allowedRoles={['admin']} />}> {/* 仅管理员可访问的页面 */}

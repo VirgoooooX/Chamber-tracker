@@ -22,7 +22,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 const UsageLogPage: React.FC = () => {
   const dispatch = useAppDispatch()
   const { usageLogs, loading: loadingUsageLogs } = useAppSelector((state) => state.usageLogs)
-  const { chambers, loading: loadingChambers } = useAppSelector((state) => state.chambers)
+  const { assets: chambers, loading: loadingChambers } = useAppSelector((state) => state.assets)
   const { projects, loading: loadingProjects } = useAppSelector((state) => state.projects)
   const { testProjects, loading: loadingTestProjects } = useAppSelector((state) => state.testProjects)
 

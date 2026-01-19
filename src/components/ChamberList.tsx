@@ -14,7 +14,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add'; // 添加导入
-import { fetchChambers, deleteChamber } from '../store/chambersSlice';
+import { fetchAssetsByType, deleteAsset } from '../store/assetsSlice'
 import IconButton from '@mui/material/IconButton';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -29,11 +29,11 @@ interface ChamberListProps {
 
 const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
   const dispatch = useAppDispatch()
-  const { chambers, loading, error } = useAppSelector((state) => state.chambers)
+  const { assets: chambers, loading, error } = useAppSelector((state) => state.assets)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    dispatch(fetchChambers());
+    dispatch(fetchAssetsByType('chamber'));
   }, [dispatch]);
 
   const handleDeleteClick = (id: string) => setPendingDeleteId(id);
@@ -42,7 +42,7 @@ const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
 
   const handleConfirmDelete = () => {
     if (!pendingDeleteId) return;
-    dispatch(deleteChamber(pendingDeleteId));
+    dispatch(deleteAsset(pendingDeleteId));
     setPendingDeleteId(null);
   };
 
@@ -103,8 +103,8 @@ const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
                       size="small"
                     />
                   </TableCell>
-                  <TableCell>{chamber.manufacturer}</TableCell>
-                  <TableCell>{chamber.model}</TableCell>
+                  <TableCell>{chamber.manufacturer || '-'}</TableCell>
+                  <TableCell>{chamber.model || '-'}</TableCell>
                   <TableCell>
                     {chamber.calibrationDate ? new Date(chamber.calibrationDate).toLocaleDateString() : '-'}
                   </TableCell>

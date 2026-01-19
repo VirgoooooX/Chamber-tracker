@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx'
 import { format, isValid, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import type { Chamber, Project, TestProject, UsageLog } from '../types'
+import type { Asset, Project, TestProject, UsageLog } from '../types'
 import { getEffectiveUsageLogStatus } from './statusHelpers'
 
 const formatDateTime = (value: string | undefined) => {
@@ -23,7 +23,7 @@ const buildConfigNameMapByProjectId = (projects: Project[]) => {
 
 export const exportUsageLogsToXlsx = (params: {
   usageLogs: UsageLog[]
-  chambers: Chamber[]
+  chambers: Asset[]
   projects: Project[]
   testProjects: TestProject[]
   fileNamePrefix?: string
@@ -83,4 +83,3 @@ export const exportUsageLogsToXlsx = (params: {
   a.click()
   URL.revokeObjectURL(url)
 }
-

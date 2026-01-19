@@ -20,14 +20,19 @@ import BusinessCenterIcon from '@mui/icons-material/BusinessCenter'; // 项目�
 import ScienceIcon from '@mui/icons-material/Science'; // 测试项目管理
 import ListAltIcon from '@mui/icons-material/ListAlt'; // 使用记录管理
 import TimelineIcon from '@mui/icons-material/ViewTimeline'; // 时间轴视图 (主视图)
+import DashboardIcon from '@mui/icons-material/Dashboard'
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
+import SettingsIcon from '@mui/icons-material/Settings'
 // import MoreVertIcon from '@mui/icons-material/MoreVert'; // Alternative for FAB group trigger
 // import MenuIcon from '@mui/icons-material/Menu'; // Alternative for SpeedDial trigger
 
 import { logout } from '../store/authSlice'; // 新增
 import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 新增 (登出图标)
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { alpha } from '@mui/material/styles'
 
 const appBarHeight = '64px';
+const APP_NAME = '设备资产管理平台'
 
 interface LayoutProps {
   children: ReactNode;
@@ -44,11 +49,14 @@ const FabContainer = styled(Box)(({ theme }) => ({
 
 // 原始的 actions 定义
 const allActions = [
+  { icon: <DashboardIcon />, name: 'KPI 面板', path: '/dashboard', roles: ['admin', 'user'] },
+  { icon: <NotificationsActiveIcon />, name: '告警中心', path: '/alerts', roles: ['admin', 'user'] },
   { icon: <AcUnitIcon />, name: '环境箱管理', path: '/chambers', roles: ['admin'] },
   { icon: <BusinessCenterIcon />, name: '项目管理', path: '/projects', roles: ['admin'] },
   { icon: <ScienceIcon />, name: '测试项目管理', path: '/test-projects', roles: ['admin'] },
   { icon: <ListAltIcon />, name: '使用记录管理', path: '/usage-logs', roles: ['admin', 'user'] },
   { icon: <TimelineIcon />, name: '时间线视图', path: '/timeline', roles: ['admin', 'user'] },
+  { icon: <SettingsIcon />, name: '设置', path: '/settings', roles: ['admin', 'user'] },
 ];
 
 
@@ -91,8 +99,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          backgroundColor: '#003da5', 
+          background: (theme) =>
+            `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.96)} 0%, ${alpha(theme.palette.primary.dark, 0.94)} 100%)`,
+          color: 'primary.contrastText',
           height: appBarHeight,
+          boxShadow: (theme) => `0 10px 28px ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.22 : 0.18)}`,
         }}
       >
         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -107,7 +118,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 // textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)', // 可以调整阴影
               }}
             >
-              环境箱管理系统 {user ? (user.username === user.role ? `(${user.username})` : `(${user.username} - ${user.role})`) : ''}
+              {APP_NAME} {user ? (user.username === user.role ? `(${user.username})` : `(${user.username} - ${user.role})`) : ''}
             </Typography>
           </Box>
           {isAuthenticated && (
@@ -127,7 +138,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          backgroundColor: '#f4f6f8',
+          backgroundColor: 'background.default',
           paddingTop: appBarHeight, // Space for the fixed AppBar
           // height: '100vh', // 高度由外层 Box 控制
           boxSizing: 'border-box',
@@ -162,7 +173,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               ? theme.palette.grey[200]
               : theme.palette.grey[800],
           textAlign: 'center',
-          borderTop: '1px solid #ddd', // 页脚顶部边框
+          borderTop: '1px solid',
+          borderTopColor: 'divider',
           flexShrink: 0, // 防止页脚在内容不足时缩小
         }}
       >
@@ -186,6 +198,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             onOpen={handleSpeedDialOpen}
             open={speedDialOpen}
             direction="up"
+            sx={{
+              '& .MuiFab-primary': {
+                backgroundColor: 'primary.main',
+                boxShadow: (theme) => `0 16px 34px ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.28 : 0.22)}`,
+                '&:hover': {
+                  backgroundColor: 'primary.dark',
+                },
+              },
+            }}
           >
             {filteredActions.map((action) => (
               <SpeedDialAction
@@ -197,10 +218,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 FabProps={{
                   size: 'medium',
                   sx: {
-                    bgcolor: '#005cb9', // <--- 5. 修改 SpeedDialAction 按钮颜色为蓝色系 (示例)
-                    color: 'white',
+                    bgcolor: 'background.paper',
+                    color: 'text.primary',
+                    border: '1px solid',
+                    borderColor: 'divider',
                     '&:hover': {
-                      bgcolor: '#004a94', // <--- 6. 修改悬停颜色 (示例)
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.10),
+                      borderColor: (theme) => alpha(theme.palette.primary.main, 0.32),
                     },
                   }
                 }}

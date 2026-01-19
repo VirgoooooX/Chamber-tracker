@@ -19,7 +19,7 @@ import {
   Firestore, // 导入 Firestore 类型以便在辅助函数中传递 db
 } from 'firebase/firestore';
 import { db } from '../firebase-config'; // 导入 db 实例
-import { UsageLog, Chamber } from '../types'; // 导入所有需要的类型
+import { UsageLog, Asset } from '../types'
 
 // 假设您已经创建了这个文件和函数
 // 如果没有，您需要先创建 src/utils/statusHelpers.ts
@@ -27,7 +27,7 @@ import { isUsageLogCurrentlyActive } from '../utils/statusHelpers';
 import { sanitizeDataForFirestore } from './firestoreUtils'
 
 const USAGE_LOGS_COLLECTION = 'usageLogs';
-const CHAMBERS_COLLECTION = 'chambers'; // 定义环境箱集合名称
+const ASSETS_COLLECTION = 'assets'
 
 // 辅助函数：mapDocToUsageLog (增加了对新字段的读取)
 const mapDocToUsageLog = (docSnapshotData: DocumentData | undefined, id: string): UsageLog => {
@@ -117,7 +117,7 @@ const checkAndAddChamberUpdateToBatch = async (
   dbInstance: Firestore,
   options?: { excludeLogId?: string }
 ): Promise<void> => {
-  const chamberRef = doc(dbInstance, CHAMBERS_COLLECTION, chamberId);
+  const chamberRef = doc(dbInstance, ASSETS_COLLECTION, chamberId)
 
   try {
     const chamberSnap = await getDoc(chamberRef);
@@ -125,7 +125,12 @@ const checkAndAddChamberUpdateToBatch = async (
       console.warn(`[Service] Chamber ${chamberId} not found. Cannot update status.`);
       return;
     }
-    const currentChamberStatus = chamberSnap.data().status as Chamber['status'];
+    const chamberData = chamberSnap.data()
+    const chamberType = chamberData.type as Asset['type'] | undefined
+    if (chamberType && chamberType !== 'chamber') {
+      return
+    }
+    const currentChamberStatus = chamberData.status as Asset['status']
 
     if (currentChamberStatus === 'maintenance') {
       return;
@@ -173,7 +178,7 @@ const checkAndAddChamberUpdateToBatch = async (
     }
 
 
-    const targetStatus: Chamber['status'] = isChamberInUse ? 'in-use' : 'available';
+    const targetStatus: Asset['status'] = isChamberInUse ? 'in-use' : 'available'
 
     if (currentChamberStatus !== targetStatus) {
       batch.update(chamberRef, { status: targetStatus });

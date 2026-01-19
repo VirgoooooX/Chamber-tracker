@@ -11,7 +11,7 @@ import { UsageLog, Project, TestProject, Config as ConfigType } from '../types';
 import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
-import { fetchChambers } from '../store/chambersSlice';
+import { fetchAssetsByType } from '../store/assetsSlice'
 import { fetchProjects } from '../store/projectsSlice';
 import { fetchTestProjects } from '../store/testProjectsSlice';
 import { fetchUsageLogs, markLogAsCompleted } from '../store/usageLogsSlice';
@@ -28,7 +28,7 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
   const dispatch = useAppDispatch()
 
   const { usageLogs, loading: loadingUsageLogsGlobal, error: errorUsageLogs } = useAppSelector((state) => state.usageLogs)
-  const { chambers, loading: loadingChambersGlobal, error: errorChambers } = useAppSelector((state) => state.chambers)
+  const { assets: chambers, loading: loadingChambersGlobal, error: errorChambers } = useAppSelector((state) => state.assets)
   const { projects, loading: loadingProjectsGlobal, error: errorProjects } = useAppSelector((state) => state.projects)
   const { testProjects, loading: loadingTestProjectsGlobal, error: errorTestProjects } = useAppSelector((state) => state.testProjects)
 
@@ -51,7 +51,7 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
       }
 
       if (chambers.length === 0 && !loadingChambersGlobal) {
-        dispatch(fetchChambers());
+        dispatch(fetchAssetsByType('chamber'));
       }
       if (projects.length === 0 && !loadingProjectsGlobal) {
         dispatch(fetchProjects());

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import ChamberList from '../components/ChamberList';
 import ChamberForm from '../components/ChamberForm';
-import { Chamber } from '../types';
+import { Asset } from '../types'
 import { useAppSelector } from '../store/hooks'
 import PageShell from '../components/PageShell';
+import { Alert } from '@mui/material'
 
 const ChambersPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
-  const [selectedChamber, setSelectedChamber] = useState<Chamber | undefined>(undefined);
-  const { chambers } = useAppSelector((state) => state.chambers)
+  const [selectedChamber, setSelectedChamber] = useState<Asset | undefined>(undefined)
+  const { assets: chambers } = useAppSelector((state) => state.assets)
+  const fallbackSource = useAppSelector((state) => state.assets.fallbackSource)
 
   const handleAddNew = () => {
     setSelectedChamber(undefined);
@@ -30,6 +32,11 @@ const ChambersPage: React.FC = () => {
 
   return (
     <PageShell title="环境箱管理">
+      {fallbackSource === 'chambers' ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          当前正在从旧的 chambers 集合读取数据（assets 尚未迁移）。建议到“设置 → 数据迁移”执行一键迁移。
+        </Alert>
+      ) : null}
       <ChamberList 
         onEdit={handleEdit}
         onAddNew={handleAddNew}

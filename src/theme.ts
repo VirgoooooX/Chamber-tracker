@@ -1,55 +1,83 @@
-import { alpha, createTheme } from '@mui/material/styles';
+import { alpha, createTheme, darken, lighten } from '@mui/material/styles'
+import type { SettingsState } from './store/settingsSlice'
 
-export const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#003da5',
-      light: '#005cb9',
-      dark: '#004a94',
-      contrastText: '#ffffff',
+export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'density' | 'primaryColor'>) => {
+  const primaryMain = settings.primaryColor || '#155EEF'
+  const mode = settings.themeMode || 'light'
+  const isDark = mode === 'dark'
+
+  const lightPrimary = lighten(primaryMain, 0.15)
+  const darkPrimary = darken(primaryMain, 0.15)
+
+  const backgroundDefault = isDark ? '#0b1220' : '#f6f8fc'
+  const backgroundPaper = isDark ? '#0f172a' : '#ffffff'
+  const textPrimary = isDark ? '#e2e8f0' : '#0f172a'
+  const textSecondary = isDark ? alpha('#e2e8f0', 0.72) : alpha('#0f172a', 0.68)
+
+  const isCompact = settings.density === 'compact'
+
+  return createTheme({
+    palette: {
+      mode,
+      primary: {
+        main: primaryMain,
+        light: lightPrimary,
+        dark: darkPrimary,
+        contrastText: '#ffffff',
+      },
+      secondary: {
+        main: isDark ? '#94a3b8' : '#5b6b7a',
+      },
+      background: {
+        default: backgroundDefault,
+        paper: backgroundPaper,
+      },
+      divider: isDark ? alpha('#e2e8f0', 0.14) : alpha('#0f172a', 0.12),
+      text: {
+        primary: textPrimary,
+        secondary: textSecondary,
+      },
     },
-    secondary: {
-      main: '#5b6b7a',
+    shape: {
+      borderRadius: 10,
     },
-    background: {
-      default: '#f4f6f8',
-      paper: '#ffffff',
+    typography: {
+      fontFamily:
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+      button: {
+        textTransform: 'none',
+        fontWeight: 600,
+      },
+      h4: {
+        fontWeight: 700,
+        letterSpacing: '-0.02em',
+      },
+      h5: {
+        fontWeight: 700,
+        letterSpacing: '-0.02em',
+      },
+      h6: {
+        fontWeight: 700,
+      },
     },
-    divider: alpha('#0f172a', 0.12),
-    text: {
-      primary: '#0f172a',
-      secondary: alpha('#0f172a', 0.68),
-    },
-  },
-  shape: {
-    borderRadius: 10,
-  },
-  typography: {
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-    button: {
-      textTransform: 'none',
-      fontWeight: 600,
-    },
-    h4: {
-      fontWeight: 700,
-      letterSpacing: '-0.02em',
-    },
-    h5: {
-      fontWeight: 700,
-      letterSpacing: '-0.02em',
-    },
-    h6: {
-      fontWeight: 700,
-    },
-  },
-  components: {
+    components: {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundColor: '#f4f6f8',
+          backgroundColor: backgroundDefault,
+          backgroundImage: isDark
+            ? `radial-gradient(900px circle at 10% 0%, ${alpha(primaryMain, 0.22)} 0%, transparent 58%), radial-gradient(700px circle at 85% 15%, ${alpha(lightPrimary, 0.14)} 0%, transparent 55%)`
+            : `radial-gradient(900px circle at 10% 0%, ${alpha(primaryMain, 0.16)} 0%, transparent 58%), radial-gradient(700px circle at 85% 15%, ${alpha(lightPrimary, 0.10)} 0%, transparent 55%)`,
+          backgroundAttachment: 'fixed',
         },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          borderRadius: theme.shape.borderRadius,
+          backgroundImage: 'none',
+        }),
       },
     },
     MuiButton: {
@@ -59,14 +87,14 @@ export const theme = createTheme({
       styleOverrides: {
         root: ({ theme }) => ({
           borderRadius: theme.shape.borderRadius,
-          minHeight: 36,
+          minHeight: isCompact ? 34 : 36,
           paddingInline: theme.spacing(1.5),
           gap: theme.spacing(0.75),
         }),
         containedPrimary: ({ theme }) => ({
-          boxShadow: `0 6px 14px ${alpha(theme.palette.primary.main, 0.22)}`,
+          boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.24 : 0.20)}`,
           '&:hover': {
-            boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.28)}`,
+            boxShadow: `0 14px 30px ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.30 : 0.26)}`,
           },
         }),
       },
@@ -74,8 +102,8 @@ export const theme = createTheme({
     MuiTextField: {
       defaultProps: {
         variant: 'outlined',
-        size: 'small',
-        margin: 'dense',
+        size: isCompact ? 'small' : 'medium',
+        margin: isCompact ? 'dense' : 'normal',
       },
     },
     MuiOutlinedInput: {
@@ -95,8 +123,8 @@ export const theme = createTheme({
           borderColor: alpha(theme.palette.text.primary, 0.18),
         }),
         input: ({ theme }) => ({
-          paddingTop: theme.spacing(1.125),
-          paddingBottom: theme.spacing(1.125),
+          paddingTop: isCompact ? theme.spacing(0.95) : theme.spacing(1.125),
+          paddingBottom: isCompact ? theme.spacing(0.95) : theme.spacing(1.125),
         }),
       },
     },
@@ -117,7 +145,7 @@ export const theme = createTheme({
     },
     MuiSelect: {
       defaultProps: {
-        size: 'small',
+        size: isCompact ? 'small' : 'medium',
       },
       styleOverrides: {
         select: ({ theme }) => ({
@@ -135,26 +163,19 @@ export const theme = createTheme({
         }),
       },
     },
-    MuiPaper: {
-      styleOverrides: {
-        root: ({ theme }) => ({
-          borderRadius: theme.shape.borderRadius,
-        }),
-      },
-    },
     MuiTableContainer: {
       styleOverrides: {
         root: ({ theme }) => ({
           border: `1px solid ${theme.palette.divider}`,
           borderRadius: theme.shape.borderRadius,
-          boxShadow: `0 1px 2px ${alpha('#0f172a', 0.06)}`,
+          boxShadow: `0 1px 2px ${alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.18 : 0.06)}`,
         }),
       },
     },
     MuiTableHead: {
       styleOverrides: {
         root: ({ theme }) => ({
-          backgroundColor: alpha(theme.palette.text.primary, 0.04),
+          backgroundColor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.04),
         }),
       },
     },
@@ -206,7 +227,7 @@ export const theme = createTheme({
     },
     MuiChip: {
       defaultProps: {
-        size: 'small',
+        size: isCompact ? 'small' : 'medium',
       },
       styleOverrides: {
         root: ({ theme }) => ({
@@ -214,5 +235,6 @@ export const theme = createTheme({
         }),
       },
     },
-  },
-});
+    },
+  })
+}

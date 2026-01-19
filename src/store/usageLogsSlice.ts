@@ -2,7 +2,7 @@
 import { createSlice, createAsyncThunk, PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { UsageLog } from '../types';
 import * as usageLogService from '../services/usageLogService';
-import { fetchChambers } from './chambersSlice';
+import { fetchAssetsByType } from './assetsSlice'
 import type { AppDispatch, RootState } from './index';
 
 interface UsageLogsState {
@@ -66,7 +66,7 @@ export const addUsageLog = createAsyncThunk<
       }
 
       try {
-        await dispatch(fetchChambers());
+        await dispatch(fetchAssetsByType('chamber'));
       } catch (fetchError) {
         console.error('[Thunk] addUsageLog: Failed to dispatch fetchChambers after add:', fetchError);
       }
@@ -89,7 +89,7 @@ export const updateUsageLog = createAsyncThunk<
       await usageLogService.updateUsageLog(id, logUpdateData);
 
       try {
-        await dispatch(fetchChambers());
+        await dispatch(fetchAssetsByType('chamber'));
       } catch (fetchError) {
         console.error('[Thunk] updateUsageLog: Failed to dispatch fetchChambers after update:', fetchError);
       }
@@ -127,7 +127,7 @@ export const markLogAsCompleted = createAsyncThunk<
       // Dispatch fetchChambers to ensure chamber status is up-to-date in the UI
       // Although the service layer handles the DB update, this ensures the Redux state for chambers is current.
       try {
-        await dispatch(fetchChambers());
+        await dispatch(fetchAssetsByType('chamber'));
       } catch (fetchError) {
         console.error(`[Thunk] markLogAsCompleted: Failed to dispatch fetchChambers for log ${logId}:`, fetchError);
         // Non-fatal, log and continue
@@ -168,7 +168,7 @@ export const deleteUsageLog = createAsyncThunk<
       await usageLogService.deleteUsageLog(id);
 
       try {
-        await dispatch(fetchChambers());
+        await dispatch(fetchAssetsByType('chamber'));
       } catch (fetchError) {
         console.error('[Thunk] deleteUsageLog: Failed to dispatch fetchChambers after delete:', fetchError);
       }

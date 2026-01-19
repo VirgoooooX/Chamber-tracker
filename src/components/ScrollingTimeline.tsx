@@ -1,7 +1,7 @@
 // src/components/ScrollingTimeline.tsx
 import React, { useMemo, useState, useEffect, useRef, useCallback, useLayoutEffect, useTransition } from 'react';
 import { UsageLog, Project, TestProject } from '../types';
-import { fetchChambers } from '../store/chambersSlice';
+import { fetchAssetsByType } from '../store/assetsSlice'
 import { fetchProjects } from '../store/projectsSlice';
 import { fetchTestProjects } from '../store/testProjectsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
@@ -382,7 +382,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   const theme = useTheme();
   const timelineCssVars = useMemo(() => buildTimelineCssVars(theme), [theme]);
   const dayWidthPx = propsDayWidthPx ?? DAY_WIDTH_PX;
-  const { chambers, loading: chambersLoading, error: chambersError } = useAppSelector((state) => state.chambers)
+  const { assets: chambers, loading: chambersLoading, error: chambersError } = useAppSelector((state) => state.assets)
   const { projects, loading: projectsLoading, error: projectsError } = useAppSelector((state) => state.projects)
   const { testProjects, loading: testProjectsLoading, error: testProjectsError } = useAppSelector((state) => state.testProjects)
   const { loading: usageLogsDataLoading } = useAppSelector((state) => state.usageLogs)
@@ -621,7 +621,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
 
   useEffect(() => { /* ... (data fetching useEffect - 保持不变) ... */
     if (!chambersLoading && (!chambers || chambers.length === 0)) {
-        dispatch(fetchChambers());
+        dispatch(fetchAssetsByType('chamber'));
     }
     if (!projectsLoading && (!projects || projects.length === 0)) {
         dispatch(fetchProjects());

@@ -11,11 +11,11 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { zhCN } from 'date-fns/locale';
 import { addHours, parseISO, isValid as isValidDate } from 'date-fns';
 
-import { UsageLog, Project, TestProject, Config as ConfigType, Chamber } from '../types';
+import { UsageLog, Project, TestProject, Config as ConfigType } from '../types';
 import { addUsageLog, updateUsageLog } from '../store/usageLogsSlice';
 import { fetchProjects } from '../store/projectsSlice';
 import { fetchTestProjects } from '../store/testProjectsSlice';
-import { fetchChambers } from '../store/chambersSlice';
+import { fetchAssetsByType } from '../store/assetsSlice'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 
 // 重新添加 MenuProps 常量定义
@@ -42,7 +42,7 @@ const UsageLogForm: React.FC<UsageLogFormProps> = ({ open, onClose, log }) => {
 
   const { projects, loading: loadingProjects, error: projectsError } = useAppSelector((state) => state.projects)
   const { testProjects, loading: loadingAllTestProjects, error: testProjectsError } = useAppSelector((state) => state.testProjects)
-  const { chambers, loading: loadingChambers, error: chambersError } = useAppSelector((state) => state.chambers)
+  const { assets: chambers, loading: loadingChambers, error: chambersError } = useAppSelector((state) => state.assets)
 
   // --- Form State ---
   const [selectedChamberId, setSelectedChamberId] = useState<string>('');
@@ -66,7 +66,7 @@ const UsageLogForm: React.FC<UsageLogFormProps> = ({ open, onClose, log }) => {
   // --- Data Fetching Effect ---
   useEffect(() => {
      if (open) {
-      dispatch(fetchChambers());
+      dispatch(fetchAssetsByType('chamber'));
       dispatch(fetchProjects());
       dispatch(fetchTestProjects());
     }
