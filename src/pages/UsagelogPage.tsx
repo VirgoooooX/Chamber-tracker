@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import ListAltIcon from '@mui/icons-material/ListAlt'
 import UsageLogForm from '../components/UsageLogForm';
 import UsageLogDetails from '../components/UsageLogDetails';
 import UsageLogList from '../components/UsageLogList'; // 1. 导入 UsageLogList
@@ -18,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { exportUsageLogsToXlsx } from '../utils/exportUsageLogsToXlsx'
 import PageShell from '../components/PageShell'
 import ConfirmDialog from '../components/ConfirmDialog'
+import TitleWithIcon from '../components/TitleWithIcon'
 
 const UsageLogPage: React.FC = () => {
   const dispatch = useAppDispatch()
@@ -129,7 +131,7 @@ const UsageLogPage: React.FC = () => {
 
   return (
     <PageShell
-      title="使用记录管理"
+      title={<TitleWithIcon icon={<ListAltIcon />}>使用记录</TitleWithIcon>}
       maxWidth="xl"
       actions={
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>

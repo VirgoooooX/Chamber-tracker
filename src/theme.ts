@@ -15,6 +15,7 @@ export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'dens
   const textSecondary = isDark ? alpha('#e2e8f0', 0.72) : alpha('#0f172a', 0.68)
 
   const isCompact = settings.density === 'compact'
+  const controlHeight = isCompact ? 34 : 36
 
   return createTheme({
     palette: {
@@ -106,9 +107,24 @@ export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'dens
         margin: isCompact ? 'dense' : 'normal',
       },
     },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          alignItems: 'center',
+          minHeight: controlHeight,
+          '&.MuiInputBase-multiline': {
+            minHeight: 'auto',
+          },
+        },
+      },
+    },
     MuiOutlinedInput: {
+      defaultProps: {
+        size: isCompact ? 'small' : 'medium',
+      },
       styleOverrides: {
         root: ({ theme }) => ({
+          minHeight: controlHeight,
           borderRadius: theme.shape.borderRadius,
           backgroundColor: theme.palette.background.paper,
           transition: 'border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease',
@@ -123,8 +139,8 @@ export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'dens
           borderColor: alpha(theme.palette.text.primary, 0.18),
         }),
         input: ({ theme }) => ({
-          paddingTop: isCompact ? theme.spacing(0.95) : theme.spacing(1.125),
-          paddingBottom: isCompact ? theme.spacing(0.95) : theme.spacing(1.125),
+          lineHeight: 1.2,
+          padding: isCompact ? `${theme.spacing(0.9)} ${theme.spacing(1.75)}` : `${theme.spacing(1.05)} ${theme.spacing(1.75)}`,
         }),
       },
     },
@@ -132,6 +148,12 @@ export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'dens
       styleOverrides: {
         root: ({ theme }) => ({
           color: alpha(theme.palette.text.primary, 0.68),
+          '&.MuiInputLabel-outlined:not(.MuiInputLabel-shrink)': {
+            transform: `translate(${theme.spacing(1.75)}, ${isCompact ? theme.spacing(1.1) : theme.spacing(1.25)}) scale(1)`,
+          },
+          '&.MuiInputLabel-outlined.MuiInputLabel-sizeSmall:not(.MuiInputLabel-shrink)': {
+            transform: `translate(${theme.spacing(1.75)}, ${isCompact ? theme.spacing(1.05) : theme.spacing(1.15)}) scale(1)`,
+          },
         }),
       },
     },
@@ -151,8 +173,11 @@ export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'dens
         select: ({ theme }) => ({
           display: 'flex',
           alignItems: 'center',
-          paddingTop: theme.spacing(1.125),
-          paddingBottom: theme.spacing(1.125),
+          lineHeight: 1.2,
+          minHeight: 'auto',
+          paddingTop: isCompact ? theme.spacing(0.9) : theme.spacing(1.05),
+          paddingBottom: isCompact ? theme.spacing(0.9) : theme.spacing(1.05),
+          paddingLeft: theme.spacing(1.75),
         }),
       },
     },
@@ -232,6 +257,56 @@ export const createAppTheme = (settings: Pick<SettingsState, 'themeMode' | 'dens
       styleOverrides: {
         root: ({ theme }) => ({
           borderRadius: theme.shape.borderRadius,
+          height: controlHeight,
+          paddingInline: theme.spacing(0.25),
+          '& .MuiChip-label': {
+            paddingInline: theme.spacing(1),
+            fontWeight: 650,
+            lineHeight: 1,
+          },
+        }),
+      },
+    },
+    MuiToggleButtonGroup: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          borderRadius: theme.shape.borderRadius,
+          overflow: 'hidden',
+          '& .MuiToggleButtonGroup-grouped': {
+            margin: 0,
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 0,
+          },
+          '& .MuiToggleButtonGroup-grouped:not(:first-of-type)': {
+            borderLeft: 0,
+            marginLeft: -1,
+          },
+          '& .MuiToggleButtonGroup-grouped:first-of-type': {
+            borderTopLeftRadius: theme.shape.borderRadius,
+            borderBottomLeftRadius: theme.shape.borderRadius,
+          },
+          '& .MuiToggleButtonGroup-grouped:last-of-type': {
+            borderTopRightRadius: theme.shape.borderRadius,
+            borderBottomRightRadius: theme.shape.borderRadius,
+          },
+        }),
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          minHeight: controlHeight,
+          borderRadius: 0,
+          paddingInline: theme.spacing(1.25),
+          fontWeight: 650,
+          textTransform: 'none',
+          '&.Mui-selected': {
+            backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.20 : 0.12),
+            borderColor: alpha(theme.palette.primary.main, 0.35),
+          },
+          '&.Mui-selected:hover': {
+            backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.26 : 0.18),
+          },
         }),
       },
     },

@@ -17,6 +17,7 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import PageShell from '../components/PageShell'
 import AppCard from '../components/AppCard'
+import TitleWithIcon from '../components/TitleWithIcon'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { fetchAssetsByType } from '../store/assetsSlice'
 import { fetchUsageLogs } from '../store/usageLogsSlice'
@@ -75,10 +76,7 @@ const AlertsPage: React.FC = () => {
   return (
     <PageShell
       title={
-        <Stack direction="row" spacing={1} alignItems="center">
-          <NotificationsActiveIcon fontSize="inherit" />
-          <span>告警中心</span>
-        </Stack>
+        <TitleWithIcon icon={<NotificationsActiveIcon />}>告警中心</TitleWithIcon>
       }
       maxWidth="xl"
       actions={

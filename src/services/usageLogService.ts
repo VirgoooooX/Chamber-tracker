@@ -23,7 +23,7 @@ import { UsageLog, Asset } from '../types'
 
 // 假设您已经创建了这个文件和函数
 // 如果没有，您需要先创建 src/utils/statusHelpers.ts
-import { isUsageLogCurrentlyActive } from '../utils/statusHelpers';
+import { isUsageLogOccupyingAsset } from '../utils/statusHelpers';
 import { sanitizeDataForFirestore } from './firestoreUtils'
 
 const USAGE_LOGS_COLLECTION = 'usageLogs';
@@ -97,13 +97,17 @@ const prepareUsageLogDataForFirestore = (data: Partial<Omit<UsageLog, 'id' | 'cr
     }
     catch (e: any) { console.error("Invalid startTime format for Firestore:", data.startTime, e.message); }
   }
-  if (data.endTime) {
+  if (Object.prototype.hasOwnProperty.call(data, 'endTime')) {
+    if (!data.endTime) {
+      firestoreReadyData.endTime = null
+    } else {
     try {
       const endDate = new Date(data.endTime);
       if (isNaN(endDate.valueOf())) throw new Error('Invalid end date string');
       firestoreReadyData.endTime = Timestamp.fromDate(endDate);
     }
     catch (e: any) { console.error("Invalid endTime format for Firestore:", data.endTime, e.message); }
+    }
   }
 
   return sanitizeDataForFirestore(firestoreReadyData);
@@ -142,19 +146,16 @@ const checkAndAddChamberUpdateToBatch = async (
     try {
       const activeLogsQuery = query(
         collection(dbInstance, USAGE_LOGS_COLLECTION),
-        and(
-          where('chamberId', '==', chamberId),
-          where('status', '==', 'in-progress'),
-          or(
-            where('endTime', '==', null),
-            where('endTime', '>', Timestamp.fromDate(now))
-          )
-        ),
-        limit(options?.excludeLogId ? 5 : 1)
-      );
-      const activeLogsSnapshot = await getDocs(activeLogsQuery);
+        and(where('chamberId', '==', chamberId), where('status', 'in', ['in-progress', 'not-started'])),
+        limit(options?.excludeLogId ? 20 : 10)
+      )
+      const activeLogsSnapshot = await getDocs(activeLogsQuery)
       if (!activeLogsSnapshot.empty) {
-        isChamberInUse = activeLogsSnapshot.docs.some((logDoc) => !(options?.excludeLogId && logDoc.id === options.excludeLogId));
+        isChamberInUse = activeLogsSnapshot.docs.some((logDoc) => {
+          if (options?.excludeLogId && logDoc.id === options.excludeLogId) return false
+          const usageLog = mapDocToUsageLog(logDoc.data(), logDoc.id)
+          return isUsageLogOccupyingAsset(usageLog, now)
+        })
       }
     } catch (fastQueryError) {
       const usageLogsQuery = query(
@@ -169,7 +170,7 @@ const checkAndAddChamberUpdateToBatch = async (
               return;
             }
             const usageLog = mapDocToUsageLog(logDoc.data(), logDoc.id);
-            if (isUsageLogCurrentlyActive(usageLog, now)) {
+            if (isUsageLogOccupyingAsset(usageLog, now)) {
               isChamberInUse = true;
             }
           });
@@ -239,7 +240,7 @@ export const createUsageLog = async (logData: Omit<UsageLog, 'id' | 'createdAt'>
 
   batch.set(newLogRef, dataToSave);
 
-  // 使用 isUsageLogCurrentlyActive 检查传入的 logData 是否应触发 'in-use'
+  // 使用 isUsageLogOccupyingAsset 检查传入的 logData 是否应触发 'in-use'
   // 注意：logData.startTime 是 string，需要转换为 Date 对象
   let tempLogForCheck: UsageLog | null = null;
   try {
@@ -256,7 +257,7 @@ export const createUsageLog = async (logData: Omit<UsageLog, 'id' | 'createdAt'>
   }
 
 
-  if (tempLogForCheck && isUsageLogCurrentlyActive(tempLogForCheck, new Date()) && logData.chamberId) {
+  if (tempLogForCheck && isUsageLogOccupyingAsset(tempLogForCheck, new Date()) && logData.chamberId) {
     // 注意：这里的 checkAndAddChamberUpdateToBatch 不需要 excludeLogId，因为记录尚未提交
     await checkAndAddChamberUpdateToBatch(batch, logData.chamberId, db);
   } else if (logData.chamberId) {

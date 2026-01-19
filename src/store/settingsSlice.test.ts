@@ -19,7 +19,7 @@ const createMemoryStorage = () => {
 
 describe('settingsSlice', () => {
   beforeEach(() => {
-    ;(globalThis as any).localStorage = createMemoryStorage()
+    (globalThis as any).localStorage = createMemoryStorage()
   })
 
   it('persists settings changes to localStorage', () => {
@@ -30,7 +30,7 @@ describe('settingsSlice', () => {
   })
 
   it('loads stored settings and preserves defaults for missing fields', () => {
-    ;(globalThis as any).localStorage.setItem('settings', JSON.stringify({ dashboard: { rangePreset: '7d' } }))
+    (globalThis as any).localStorage.setItem('settings', JSON.stringify({ dashboard: { rangePreset: '7d' } }))
     const state1 = reducer(undefined, loadSettingsFromStorage())
     expect(state1.dashboard.rangePreset).toBe('7d')
     expect(state1.alerts.calibrationDaysThreshold).toBeGreaterThan(0)
@@ -41,4 +41,3 @@ describe('settingsSlice', () => {
     expect(state1.dashboard.rangePreset).toBe('90d')
   })
 })
-

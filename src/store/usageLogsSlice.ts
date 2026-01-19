@@ -4,6 +4,7 @@ import { UsageLog } from '../types';
 import * as usageLogService from '../services/usageLogService';
 import { fetchAssetsByType } from './assetsSlice'
 import type { AppDispatch, RootState } from './index';
+import { reconcileAssetStatusesFromUsageLogs } from '../services/assetStatusReconcileService'
 
 interface UsageLogsState {
   usageLogs: UsageLog[];
@@ -22,12 +23,17 @@ const initialState: UsageLogsState = {
 export const fetchUsageLogs = createAsyncThunk<
   UsageLog[],
   void,
-  { rejectValue: string }
+  { rejectValue: string; dispatch: AppDispatch; state: RootState }
 >(
   'usageLogs/fetchUsageLogs',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState, dispatch }) => {
     try {
       const data = await usageLogService.getAllUsageLogs();
+      const assets = getState().assets.assets
+      const changed = await reconcileAssetStatusesFromUsageLogs(assets, data)
+      if (changed > 0) {
+        await dispatch(fetchAssetsByType('chamber'))
+      }
       return data;
     } catch (error: any) {
       console.error('[Thunk] fetchUsageLogs: Caught error from service. Error message:', error.message, 'Error object:', error);

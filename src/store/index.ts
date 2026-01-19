@@ -6,6 +6,7 @@ import projectsReducer from './projectsSlice';
 import testProjectsReducer from './testProjectsSlice';
 import authReducer from './authSlice';
 import settingsReducer from './settingsSlice'
+import repairTicketsReducer from './repairTicketsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     testProjects: testProjectsReducer, // <--- testProjects 在这里定义
     auth: authReducer,
     settings: settingsReducer,
+    repairTickets: repairTicketsReducer,
   },
 });
 

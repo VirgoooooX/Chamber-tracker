@@ -16,6 +16,7 @@ export interface Asset {
   type: AssetType
   name: string
   status: AssetStatus
+  assetCode?: string
   description?: string
   tags?: string[]
   location?: string
@@ -78,4 +79,28 @@ export interface UsageLog {
   selectedConfigIds?: string[]
   selectedWaterfall?: string
   createdAt: string
+}
+
+export type RepairStatus = 'quote-pending' | 'repair-pending' | 'completed'
+
+export interface RepairTimelineEntry {
+  at: string
+  from?: RepairStatus
+  to: RepairStatus
+  note?: string
+}
+
+export interface RepairTicket {
+  id: string
+  assetId: string
+  status: RepairStatus
+  problemDesc: string
+  vendorName?: string
+  quoteAmount?: number
+  quoteAt?: string
+  expectedReturnAt?: string
+  completedAt?: string
+  createdAt: string
+  updatedAt?: string
+  timeline?: RepairTimelineEntry[]
 }

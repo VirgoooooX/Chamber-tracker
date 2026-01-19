@@ -29,6 +29,10 @@ import { fetchUsageLogs } from '../store/usageLogsSlice'
 import { selectDashboardKpis } from '../store/kpiSelectors'
 import { setDashboardRangePreset } from '../store/settingsSlice'
 import { Alert } from '@mui/material'
+import TitleWithIcon from '../components/TitleWithIcon'
+import DashboardIcon from '@mui/icons-material/Dashboard'
+import { fetchRepairTickets } from '../store/repairTicketsSlice'
+import { useNavigate } from 'react-router-dom'
 
 type RangePreset = '7d' | '30d' | '90d' | 'custom'
 
@@ -100,10 +104,14 @@ const KpiTile: React.FC<{
 
 const DashboardPage: React.FC = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const theme = useTheme()
 
   const assetsLoading = useAppSelector((s) => s.assets.loading)
   const usageLogsLoading = useAppSelector((s) => s.usageLogs.loading)
+  const repairTicketsLoading = useAppSelector((s) => s.repairTickets.loading)
+  const repairTickets = useAppSelector((s) => s.repairTickets.tickets)
+  const assets = useAppSelector((s) => s.assets.assets)
   const settings = useAppSelector((s) => s.settings)
   const fallbackSource = useAppSelector((s) => s.assets.fallbackSource)
 
@@ -119,6 +127,7 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     dispatch(fetchAssetsByType('chamber'))
     dispatch(fetchUsageLogs())
+    dispatch(fetchRepairTickets(undefined))
   }, [dispatch])
 
   const { startMs, endMs } = useMemo(() => {
@@ -144,15 +153,43 @@ const DashboardPage: React.FC = () => {
   )
 
   const isLoading = assetsLoading || usageLogsLoading
+  const isRepairLoading = repairTicketsLoading
   const utilizationText = useMemo(() => formatPercent(kpis.utilization.ratio), [kpis.utilization.ratio])
+
+  const repairStats = useMemo(() => {
+    const quotePending = repairTickets.filter((t) => t.status === 'quote-pending').length
+    const repairPending = repairTickets.filter((t) => t.status === 'repair-pending').length
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const completedThisWeek = repairTickets.filter((t) => {
+      if (t.status !== 'completed' || !t.completedAt) return false
+      const ms = new Date(t.completedAt).getTime()
+      return !Number.isNaN(ms) && ms >= weekAgo
+    }).length
+    return { quotePending, repairPending, completedThisWeek }
+  }, [repairTickets])
+
+  const urgentOpenRepairs = useMemo(() => {
+    const open = repairTickets.filter((t) => t.status !== 'completed')
+    return open
+      .slice()
+      .sort((a, b) => {
+        const aTime = new Date(a.updatedAt ?? a.createdAt).getTime()
+        const bTime = new Date(b.updatedAt ?? b.createdAt).getTime()
+        return bTime - aTime
+      })
+      .slice(0, 5)
+  }, [repairTickets])
+
+  const assetNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    assets.forEach((a) => map.set(a.id, a.name))
+    return map
+  }, [assets])
 
   return (
     <PageShell
       title={
-        <Stack direction="row" spacing={1} alignItems="center">
-          <AssessmentIcon fontSize="inherit" />
-          <span>KPI 面板</span>
-        </Stack>
+        <TitleWithIcon icon={<DashboardIcon />}>设备总览</TitleWithIcon>
       }
       maxWidth="xl"
       actions={
@@ -279,49 +316,83 @@ const DashboardPage: React.FC = () => {
       </Grid>
 
       <Grid container spacing={2} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={7}>
-          <AppCard title="最忙设备（Top 6）">
+        <Grid item xs={12} md={6}>
+          <AppCard
+            title="维修追踪"
+            actions={
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => navigate('/repairs')}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                进入维修管理
+              </Button>
+            }
+          >
             <Stack spacing={1.25}>
-              {kpis.topBusyAssets.length === 0 ? (
-                <Typography color="text.secondary">暂无数据</Typography>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Chip
+                  label={isRepairLoading ? '未询价: 加载中' : `未询价: ${repairStats.quotePending}`}
+                  color={repairStats.quotePending > 0 ? 'warning' : 'default'}
+                  sx={{ fontWeight: 650 }}
+                />
+                <Chip
+                  label={isRepairLoading ? '待维修: 加载中' : `待维修: ${repairStats.repairPending}`}
+                  color={repairStats.repairPending > 0 ? 'info' : 'default'}
+                  sx={{ fontWeight: 650 }}
+                />
+                <Chip
+                  label={isRepairLoading ? '本周完成: 加载中' : `本周完成: ${repairStats.completedThisWeek}`}
+                  variant="outlined"
+                  sx={{ fontWeight: 650 }}
+                />
+              </Stack>
+
+              {isRepairLoading ? (
+                <LinearProgress />
+              ) : urgentOpenRepairs.length === 0 ? (
+                <Typography color="text.secondary">暂无待处理的维修工单</Typography>
               ) : (
-                kpis.topBusyAssets.map(({ asset, utilizationRatio }) => (
+                urgentOpenRepairs.map((t) => (
                   <Box
-                    key={asset.id}
+                    key={t.id}
                     sx={{
                       border: '1px solid',
                       borderColor: 'divider',
                       borderRadius: 2,
-                      p: 1.5,
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 180px',
-                      gap: 1.5,
+                      p: 1.25,
+                      display: 'flex',
                       alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1.5,
+                      backgroundColor: (theme) =>
+                        alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.6),
                     }}
                   >
-                    <Box>
-                      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                        <Typography sx={{ fontWeight: 750 }}>{asset.name}</Typography>
-                        <Chip
-                          size="small"
-                          label={asset.status === 'available' ? '可用' : asset.status === 'in-use' ? '使用中' : '维护中'}
-                          color={asset.status === 'available' ? 'success' : asset.status === 'in-use' ? 'warning' : 'error'}
-                        />
-                      </Stack>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                        {asset.manufacturer || '未知厂商'} · {asset.model || '未知型号'}
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 800 }} noWrap>
+                        {assetNameById.get(t.assetId) || t.assetId.slice(0, 8)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {t.problemDesc || '-'}
                       </Typography>
                     </Box>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 750, mb: 0.5, textAlign: 'right' }}>
-                        {formatPercent(utilizationRatio)}
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(100, Math.round(utilizationRatio * 100))}
-                        sx={{ height: 8, borderRadius: 999 }}
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip
+                        size="small"
+                        label={t.status === 'quote-pending' ? '未询价' : '待维修'}
+                        color={t.status === 'quote-pending' ? 'warning' : 'info'}
                       />
-                    </Box>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => navigate('/repairs')}
+                        sx={{ whiteSpace: 'nowrap' }}
+                      >
+                        处理
+                      </Button>
+                    </Stack>
                   </Box>
                 ))
               )}
@@ -329,7 +400,7 @@ const DashboardPage: React.FC = () => {
           </AppCard>
         </Grid>
 
-        <Grid item xs={12} md={5}>
+        <Grid item xs={12} md={6}>
           <AppCard title={`校准到期提醒（≤${kpis.calibrationDueSoon.daysThreshold}天）`}>
             <Stack spacing={1}>
               {kpis.calibrationDueSoon.count === 0 ? (

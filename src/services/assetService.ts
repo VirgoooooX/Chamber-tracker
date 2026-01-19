@@ -43,6 +43,7 @@ const docToAsset = (docSnap: DocumentSnapshot<DocumentData>): Asset => {
     type: data.type as AssetType,
     name: data.name as string,
     status: data.status as Asset['status'],
+    assetCode: data.assetCode as string | undefined,
     description: data.description as string | undefined,
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : undefined,
     location: data.location as string | undefined,
@@ -86,6 +87,7 @@ export const createAsset = async (
   if (assetData.manufacturer !== undefined) dataToSave.manufacturer = assetData.manufacturer
   if (assetData.model !== undefined) dataToSave.model = assetData.model
   if (assetData.owner !== undefined) dataToSave.owner = assetData.owner
+  if (assetData.assetCode !== undefined) dataToSave.assetCode = assetData.assetCode
 
   if (assetData.calibrationDate) {
     const d = new Date(assetData.calibrationDate)
@@ -135,4 +137,3 @@ export const deleteAsset = async (id: string): Promise<void> => {
   const assetRef = doc(db, COLLECTION_NAME, id)
   await deleteDoc(assetRef)
 }
-

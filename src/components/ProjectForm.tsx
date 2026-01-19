@@ -19,6 +19,7 @@ import {
   Chip,
   Alert,
   Snackbar,
+  Stack,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Project, Config } from '../types'; // Config 类型现在包含 remark
@@ -173,31 +174,71 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
 
             {/* Config 管理 */}
             <Box>
-              <Typography variant="h6" gutterBottom>Config</Typography> {/* 修改标题 */}
-              <Box display="flex" gap={1} mb={1} alignItems="flex-start">
-                <TextField label="新 Config 名称" value={configName} onChange={(e) => setConfigName(e.target.value)} sx={{flexGrow: 1}}/>
-                {/* 修改：配置参数输入框变为备注输入框 */}
-                <TextField 
-                  label="备注 (可选)" 
-                  value={configRemark} 
-                  onChange={(e) => setConfigRemark(e.target.value)} 
-                  multiline 
-                  rows={2} 
-                  sx={{flexGrow: 2}}
+              <Typography variant="h6" sx={{ mb: 1 }}>Config</Typography> {/* 修改标题 */}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                sx={{ mb: 1 }}
+              >
+                <TextField
+                  label="新 Config 名称"
+                  value={configName}
+                  onChange={(e) => setConfigName(e.target.value)}
+                  size="small"
+                  fullWidth
+                  sx={{ flex: 1 }}
                 />
-                <Button onClick={handleAddConfig} variant="outlined" size="medium" sx={{height: 'fit-content', mt: 'auto', mb: 'auto'}}>添加 Config</Button> {/* 修改按钮文本 */}
-              </Box>
+                <TextField
+                  label="备注 (可选)"
+                  value={configRemark}
+                  onChange={(e) => setConfigRemark(e.target.value)}
+                  size="small"
+                  fullWidth
+                  sx={{ flex: 1.5 }}
+                />
+                <Button
+                  onClick={handleAddConfig}
+                  variant="outlined"
+                  size="small"
+                  sx={{ minWidth: { xs: '100%', sm: 120 }, whiteSpace: 'nowrap' }}
+                >
+                  添加 Config
+                </Button>
+              </Stack>
               <List dense>
                 {configs.map((config) => (
-                  <ListItem key={config.id} secondaryAction={<IconButton edge="end" aria-label="delete" onClick={() => handleDeleteConfig(config.id)}><DeleteIcon /></IconButton>}>
-                    <ListItemText 
-                      primary={config.name}
-                      // 修改：显示备注而不是参数数量
-                      secondary={config.remark ? `备注: ${config.remark.substring(0, 50)}${config.remark.length > 50 ? '...' : ''}` : '无备注'} 
+                  <ListItem
+                    key={config.id}
+                    sx={{ py: 0.5 }}
+                    secondaryAction={
+                      <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteConfig(config.id)} size="small">
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemText
+                      primary={
+                        <Stack direction="row" spacing={1} alignItems="baseline" sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontWeight: 650 }} noWrap>
+                            {config.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                            {config.remark ? config.remark : '无备注'}
+                          </Typography>
+                        </Stack>
+                      }
                     />
                   </ListItem>
                 ))}
-                {configs.length === 0 && <Typography variant="body2" color="text.secondary">暂无 Config</Typography>} {/* 修改提示 */}
+                {configs.length === 0 && (
+                  <ListItem sx={{ py: 0.5 }}>
+                    <ListItemText
+                      primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                      primary="暂无 Config"
+                    />
+                  </ListItem>
+                )}
               </List>
             </Box>
 

@@ -5,6 +5,8 @@ import ProjectDetails from '../components/ProjectDetails';
 import { Project } from '../types';
 import { useAppSelector } from '../store/hooks'
 import PageShell from '../components/PageShell';
+import BusinessCenterIcon from '@mui/icons-material/BusinessCenter'
+import TitleWithIcon from '../components/TitleWithIcon'
 
 const ProjectsPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
@@ -42,7 +44,7 @@ const ProjectsPage: React.FC = () => {
   };
 
   return (
-    <PageShell title="项目管理">
+    <PageShell title={<TitleWithIcon icon={<BusinessCenterIcon />}>项目</TitleWithIcon>}>
       <ProjectList 
         onEdit={handleEdit}
         onAddNew={handleAddNew}

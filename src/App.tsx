@@ -10,6 +10,7 @@ import TestProjectsPage from './pages/TestProjectsPage';
 import UsageLogPage from './pages/UsagelogPage';
 import AlertsPage from './pages/AlertsPage'
 import SettingsPage from './pages/SettingsPage'
+import RepairsPage from './pages/RepairsPage'
 import LoginPage from './pages/LoginPage'; // 新增
 import PrivateRoute from './components/PrivateRoute'; // 新增
 import { loadUserFromStorage } from './store/authSlice'; // 新增
@@ -45,6 +46,7 @@ function App() {
             <Route path="/chambers" element={<ChambersPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/test-projects" element={<TestProjectsPage />} />
+            <Route path="/repairs" element={<RepairsPage />} />
           </Route>
           
           {/* 可以添加一个 404 Not Found 页面 */}

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Box, Typography, CircularProgress, Button, Alert, Chip, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import TimelineIcon from '@mui/icons-material/ViewTimeline'
 import ScrollingTimeline from '../components/ScrollingTimeline';
 import UsageLogDetails from '../components/UsageLogDetails';
 import UsageLogForm from '../components/UsageLogForm';
@@ -11,6 +12,7 @@ import { fetchUsageLogs, removeConfigFromUsageLog } from '../store/usageLogsSlic
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'
 import { alpha, useTheme } from '@mui/material/styles';
+import TitleWithIcon from '../components/TitleWithIcon'
 
 const TimelinePage: React.FC = () => {
     const theme = useTheme();
@@ -147,7 +149,7 @@ const TimelinePage: React.FC = () => {
                             lineHeight: 1.15,
                         }}
                     >
-                        时间轴视图
+                        <TitleWithIcon icon={<TimelineIcon />}>使用时间线</TitleWithIcon>
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
                         <Button variant="outlined" size="small" onClick={() => setScrollToTodaySignal((n) => n + 1)} sx={{ whiteSpace: 'nowrap' }}>

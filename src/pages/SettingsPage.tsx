@@ -21,6 +21,7 @@ import PaletteIcon from '@mui/icons-material/Palette'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PageShell from '../components/PageShell'
 import AppCard from '../components/AppCard'
+import TitleWithIcon from '../components/TitleWithIcon'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   DashboardRangePreset,
@@ -97,10 +98,7 @@ const SettingsPage: React.FC = () => {
   return (
     <PageShell
       title={
-        <Stack direction="row" spacing={1} alignItems="center">
-          <SettingsIcon fontSize="inherit" />
-          <span>设置</span>
-        </Stack>
+        <TitleWithIcon icon={<SettingsIcon />}>设置</TitleWithIcon>
       }
       maxWidth="lg"
     >

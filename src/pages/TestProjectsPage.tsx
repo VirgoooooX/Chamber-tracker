@@ -9,10 +9,12 @@ import {
   Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ScienceIcon from '@mui/icons-material/Science'
 import TestProjectList from '../components/TestProjectList'; // 导入列表组件
 import TestProjectForm from '../components/TestProjectForm'; // 导入表单组件
 import PageShell from '../components/PageShell';
 import ConfirmDialog from '../components/ConfirmDialog';
+import TitleWithIcon from '../components/TitleWithIcon'
 import { AppDispatch } from '../store';
 import { TestProject } from '../types';
 // 导入 deleteTestProject。fetchTestProjects 通常在 TestProjectList 中处理，
@@ -90,7 +92,7 @@ const TestProjectsPage: React.FC = () => {
 
   return (
     <PageShell
-      title="测试项目管理"
+      title={<TitleWithIcon icon={<ScienceIcon />}>测试项目</TitleWithIcon>}
       actions={
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenForm()}>
           添加测试项目

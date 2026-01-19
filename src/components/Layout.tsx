@@ -11,6 +11,7 @@ import {
   SpeedDialIcon,
   SpeedDialAction,
   Button, // <<< Add Button here
+  IconButton,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
@@ -30,6 +31,9 @@ import { logout } from '../store/authSlice'; // 新增
 import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 新增 (登出图标)
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { alpha } from '@mui/material/styles'
+import AppsIcon from '@mui/icons-material/Apps'
+import NavHubDialog from './NavHubDialog'
+import { navItems, navSections } from '../nav/navConfig'
 
 const appBarHeight = '64px';
 const APP_NAME = '设备资产管理平台'
@@ -47,25 +51,13 @@ const FabContainer = styled(Box)(({ theme }) => ({
 }));
 
 
-// 原始的 actions 定义
-const allActions = [
-  { icon: <DashboardIcon />, name: 'KPI 面板', path: '/dashboard', roles: ['admin', 'user'] },
-  { icon: <NotificationsActiveIcon />, name: '告警中心', path: '/alerts', roles: ['admin', 'user'] },
-  { icon: <AcUnitIcon />, name: '环境箱管理', path: '/chambers', roles: ['admin'] },
-  { icon: <BusinessCenterIcon />, name: '项目管理', path: '/projects', roles: ['admin'] },
-  { icon: <ScienceIcon />, name: '测试项目管理', path: '/test-projects', roles: ['admin'] },
-  { icon: <ListAltIcon />, name: '使用记录管理', path: '/usage-logs', roles: ['admin', 'user'] },
-  { icon: <TimelineIcon />, name: '时间线视图', path: '/timeline', roles: ['admin', 'user'] },
-  { icon: <SettingsIcon />, name: '设置', path: '/settings', roles: ['admin', 'user'] },
-];
-
-
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch()
   const { isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
+  const [navHubOpen, setNavHubOpen] = useState(false)
 
   const handleSpeedDialOpen = () => setSpeedDialOpen(true);
   const handleSpeedDialClose = () => setSpeedDialOpen(false);
@@ -82,14 +74,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   // 根据用户角色和认证状态过滤 SpeedDial actions
-  const getFilteredActions = () => {
-    if (!isAuthenticated || !user) {
-      return []; // 未登录不显示任何操作，或只显示登录
-    }
-    return allActions.filter(action => action.roles.includes(user.role));
-  };
-
-  const filteredActions = getFilteredActions();
+  const role = user?.role as 'admin' | 'user' | undefined
+  const filteredItems = isAuthenticated && role ? navItems.filter((i) => i.roles.includes(role)) : []
+  const quickItems = filteredItems.filter((i) => i.quick).slice().sort((a, b) => a.order - b.order)
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -115,23 +102,63 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               sx={{
                 fontSize: '24px', // 可以适当调整字体大小
                 fontWeight: 'bold',
+                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
                 // textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)', // 可以调整阴影
               }}
             >
-              {APP_NAME} {user ? (user.username === user.role ? `(${user.username})` : `(${user.username} - ${user.role})`) : ''}
+              {APP_NAME}
+              {user?.username ? ` (${user.username})` : ''}
             </Typography>
           </Box>
-          {isAuthenticated && (
-            <Button
-              color="inherit"
-              startIcon={<ExitToAppIcon />}
-              onClick={handleLogout}
-            >
-              登出
-            </Button>
-          )}
+          {isAuthenticated ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton
+                color="inherit"
+                onClick={() => setNavHubOpen(true)}
+                aria-label="open navigation hub"
+                sx={{
+                  border: '1px solid',
+                  borderColor: (theme) => alpha(theme.palette.common.white, 0.18),
+                  backgroundColor: (theme) => alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.10 : 0.12),
+                  '&:hover': {
+                    backgroundColor: (theme) => alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.16 : 0.18),
+                  },
+                }}
+              >
+                <AppsIcon fontSize="small" />
+              </IconButton>
+              <Button
+                color="inherit"
+                startIcon={<ExitToAppIcon />}
+                onClick={handleLogout}
+                sx={{
+                  border: '1px solid',
+                  borderColor: (theme) => alpha(theme.palette.common.white, 0.16),
+                  backgroundColor: (theme) => alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.10 : 0.08),
+                  '&:hover': {
+                    backgroundColor: (theme) => alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.16 : 0.14),
+                  },
+                }}
+              >
+                登出
+              </Button>
+            </Box>
+          ) : null}
         </Toolbar>
       </AppBar>
+
+      {isAuthenticated && role ? (
+        <NavHubDialog
+          open={navHubOpen}
+          onClose={() => setNavHubOpen(false)}
+          sections={navSections}
+          items={navItems}
+          role={role}
+          onNavigate={(path) => navigate(path)}
+        />
+      ) : null}
 
       {/* Main Content Area */}
       <Box
@@ -165,26 +192,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Box
         component="footer"
         sx={{
-          py: 1, // 垂直方向的内边距
-          px: 2, // 水平方向的内边距
+          py: 0.5,
+          px: 2,
           mt: 'auto', // 将页脚推到底部
           backgroundColor: (theme) =>
             theme.palette.mode === 'light'
               ? theme.palette.grey[200]
               : theme.palette.grey[800],
-          textAlign: 'center',
           borderTop: '1px solid',
           borderTopColor: 'divider',
           flexShrink: 0, // 防止页脚在内容不足时缩小
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
         }}
       >
-        <Typography variant="body2" color="text.secondary">
-          {'© '}
-          {new Date().getFullYear()}
-          {' Jabil 内部专用 · All Rights Reserved · By Vigoss'}
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+          © {new Date().getFullYear()} Jabil 内部专用 · All Rights Reserved · By Vigoss
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block">
-          版本 1.0.0
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+          · 版本 1.0.0
         </Typography>
       </Box>
 
@@ -208,11 +238,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               },
             }}
           >
-            {filteredActions.map((action) => (
+            {quickItems.map((action) => (
               <SpeedDialAction
-                key={action.name}
+                key={action.id}
                 icon={action.icon}
-                tooltipTitle={action.name}
+                tooltipTitle={action.label}
                 tooltipOpen
                 onClick={() => handleActionClick(action.path)}
                 FabProps={{
