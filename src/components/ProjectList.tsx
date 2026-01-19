@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Box, 
   Typography, 
-  Paper, 
   Table, 
   TableBody, 
   TableCell, 
@@ -10,10 +9,20 @@ import {
   TableHead, 
   TableRow,
   Button,
-  Chip
+  Chip,
+  CircularProgress,
+  Alert,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { fetchProjects, deleteProject } from '../store/projectsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import ConfirmDialog from './ConfirmDialog';
+import AppCard from './AppCard';
 
 interface ProjectListProps {
   onEdit: (id: string) => void;
@@ -24,38 +33,52 @@ interface ProjectListProps {
 const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetails }) => {
   const dispatch = useAppDispatch()
   const { projects, loading, error } = useAppSelector((state) => state.projects)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchProjects());
   }, [dispatch]);
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('确定要删除这个项目吗？')) {
-      dispatch(deleteProject(id));
-    }
+  const handleDeleteClick = (id: string) => setPendingDeleteId(id);
+
+  const handleCloseDelete = () => setPendingDeleteId(null);
+
+  const handleConfirmDelete = () => {
+    if (!pendingDeleteId) return;
+    dispatch(deleteProject(pendingDeleteId));
+    setPendingDeleteId(null);
   };
 
-  if (loading) return <Typography>加载中...</Typography>;
-  if (error) return <Typography color="error">{error}</Typography>;
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>正在加载项目列表...</Typography>
+      </Box>
+    );
+  }
+  if (error) return <Alert severity="error">加载项目列表失败: {error}</Alert>;
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h5" component="h2">项目列表</Typography>
-        <Button variant="contained" color="primary" onClick={onAddNew}>
-          添加项目
-        </Button>
-      </Box>
-      
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
+      <AppCard
+        title="项目列表"
+        actions={
+          <Button variant="contained" color="primary" onClick={onAddNew} startIcon={<AddIcon />}>
+            添加项目
+          </Button>
+        }
+        contentSx={{ mx: -2.5, mb: -2.5 }}
+      >
+        <TableContainer component={Box} sx={{ border: 'none', boxShadow: 'none', borderRadius: 0 }}>
+          <Table size="small">
+          <TableHead sx={{ backgroundColor: 'action.hover' }}>
             <TableRow>
-              <TableCell>名称</TableCell>
-              <TableCell>描述</TableCell>
-              <TableCell>配置数量</TableCell>
-              <TableCell>创建时间</TableCell>
-              <TableCell>操作</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>名称</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>描述</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>配置数量</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>创建时间</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -65,7 +88,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
               </TableRow>
             ) : (
               projects.map((project) => (
-                <TableRow key={project.id}>
+                <TableRow key={project.id} hover>
                   <TableCell>{project.name}</TableCell>
                   <TableCell>{project.description || '-'}</TableCell>
                   <TableCell>
@@ -76,35 +99,37 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
                     />
                   </TableCell>
                   <TableCell>{new Date(project.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button 
-                      size="small" 
-                      onClick={() => onViewDetails(project.id)}
-                      sx={{ mr: 1 }}
-                    >
-                      详情
-                    </Button>
-                    <Button 
-                      size="small" 
-                      onClick={() => onEdit(project.id)}
-                      sx={{ mr: 1 }}
-                    >
-                      编辑
-                    </Button>
-                    <Button 
-                      size="small" 
-                      color="error" 
-                      onClick={() => handleDelete(project.id)}
-                    >
-                      删除
-                    </Button>
+                  <TableCell align="center">
+                    <Tooltip title="详情">
+                      <IconButton size="small" color="info" onClick={() => onViewDetails(project.id)}>
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="编辑">
+                      <IconButton size="small" color="primary" onClick={() => onEdit(project.id)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="删除">
+                      <IconButton size="small" color="error" onClick={() => handleDeleteClick(project.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
-        </Table>
-      </TableContainer>
+          </Table>
+        </TableContainer>
+      </AppCard>
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="确认删除"
+        description="您确定要删除这个项目吗？此操作无法撤销。"
+        onClose={handleCloseDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </Box>
   );
 };

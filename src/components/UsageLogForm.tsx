@@ -206,18 +206,18 @@ const UsageLogForm: React.FC<UsageLogFormProps> = ({ open, onClose, log }) => {
     <Dialog open={open} onClose={() => onClose()} maxWidth="sm" fullWidth>
       <DialogTitle>{log ? '编辑使用记录' : '登记使用记录'}</DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent dividers>
           {isLoadingInitialData && open && (
             <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress size={24} /> 加载选项...</Box>
           )}
           <Box display="flex" flexDirection="column" gap={2.5} paddingTop={1}>
             {/* 1. 环境箱选择 */}
-            <FormControl fullWidth error={!!errors.chamberId} disabled={isLoadingInitialData}>
-               <InputLabel id="chamber-select-label">环境箱*</InputLabel>
+            <FormControl fullWidth required error={!!errors.chamberId} disabled={isLoadingInitialData}>
+               <InputLabel id="chamber-select-label">环境箱</InputLabel>
                <Select
                    labelId="chamber-select-label"
                    value={selectedChamberId}
-                   label="环境箱*"
+                   label="环境箱"
                    onChange={(e) => setSelectedChamberId(e.target.value)}
                >
                    {chambers.length === 0 && <MenuItem disabled>暂无环境箱</MenuItem>}
@@ -228,12 +228,12 @@ const UsageLogForm: React.FC<UsageLogFormProps> = ({ open, onClose, log }) => {
             </FormControl>
 
             {/* 2. 项目名 */}
-            <FormControl fullWidth error={!!errors.project} disabled={isLoadingInitialData}>
-               <InputLabel id="project-name-label">项目名 (用于关联)*</InputLabel>
+            <FormControl fullWidth required error={!!errors.project} disabled={isLoadingInitialData}>
+               <InputLabel id="project-name-label">项目名 (用于关联)</InputLabel>
                <Select
                    labelId="project-name-label"
                    value={actualProjectId} 
-                   label="项目名 (用于关联)*"
+                   label="项目名 (用于关联)"
                    onChange={handleProjectDropdownChange} 
                >
                    <MenuItem value=""><em>请选择项目</em></MenuItem>
@@ -307,24 +307,24 @@ const UsageLogForm: React.FC<UsageLogFormProps> = ({ open, onClose, log }) => {
             {/* 6. 开始时间 */}
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
                 <DateTimePicker
-                    label="开始时间*"
+                    label="开始时间"
                     value={startTime}
                     onChange={(newValue) => setStartTime(newValue)}
-                    slotProps={{ textField: { fullWidth: true, error: !!errors.startTime, helperText: errors.startTime } }}
+                    slotProps={{ textField: { fullWidth: true, required: true, error: !!errors.startTime, helperText: errors.startTime } }}
                 />
             {/* 7. 结束时间 */}
                 <DateTimePicker
-                    label="结束时间*"
+                    label="结束时间"
                     value={endTime}
                     onChange={(newValue) => setEndTime(newValue)}
                     minDateTime={startTime || undefined} 
-                    slotProps={{ textField: { fullWidth: true, error: !!errors.endTime, helperText: errors.endTime } }}
+                    slotProps={{ textField: { fullWidth: true, required: true, error: !!errors.endTime, helperText: errors.endTime } }}
                 />
             </LocalizationProvider>
             
             {/* 8. 使用人 */}
             <TextField
-                label="使用人*"
+                label="使用人"
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
                 fullWidth
@@ -333,12 +333,12 @@ const UsageLogForm: React.FC<UsageLogFormProps> = ({ open, onClose, log }) => {
                 helperText={errors.user}
             />
             
-            <FormControl fullWidth error={!!errors.status}>
-              <InputLabel id="status-select-label">状态*</InputLabel>
+            <FormControl fullWidth required error={!!errors.status}>
+              <InputLabel id="status-select-label">状态</InputLabel>
               <Select
                 labelId="status-select-label"
                 value={status}
-                label="状态*"
+                label="状态"
                 onChange={(e) => setStatus(e.target.value as UsageLog['status'])}
               >
                 <MenuItem value="not-started">未开始</MenuItem>

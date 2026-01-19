@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Container, Box, Typography } from '@mui/material';
 import ChamberList from '../components/ChamberList';
 import ChamberForm from '../components/ChamberForm';
 import { Chamber } from '../types';
 import { useAppSelector } from '../store/hooks'
+import PageShell from '../components/PageShell';
 
 const ChambersPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
@@ -29,24 +29,18 @@ const ChambersPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box py={4}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          环境箱管理
-        </Typography>
-        
-        <ChamberList 
-          onEdit={handleEdit}
-          onAddNew={handleAddNew}
-        />
-        
-        <ChamberForm 
-          open={formOpen}
-          onClose={handleCloseForm}
-          chamber={selectedChamber}
-        />
-      </Box>
-    </Container>
+    <PageShell title="环境箱管理">
+      <ChamberList 
+        onEdit={handleEdit}
+        onAddNew={handleAddNew}
+      />
+      
+      <ChamberForm 
+        open={formOpen}
+        onClose={handleCloseForm}
+        chamber={selectedChamber}
+      />
+    </PageShell>
   );
 };
 

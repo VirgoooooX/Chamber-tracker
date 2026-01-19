@@ -1,15 +1,9 @@
 // src/pages/UsageLogPage.tsx
 import React, { useState, useCallback } from 'react';
 import {
-  Container,
   Box,
   Typography,
   Button,
-  Dialog, // 用于删除确认
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Snackbar, // 用于显示操作结果
   Alert
 } from '@mui/material';
@@ -22,6 +16,8 @@ import { UsageLog } from '../types'; // 导入 UsageLog 类型
 import { deleteUsageLog } from '../store/usageLogsSlice'; // 导入 deleteUsageLog
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { exportUsageLogsToXlsx } from '../utils/exportUsageLogsToXlsx'
+import PageShell from '../components/PageShell'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const UsageLogPage: React.FC = () => {
   const dispatch = useAppDispatch()
@@ -132,39 +128,20 @@ const UsageLogPage: React.FC = () => {
   }, [chambers, loadingChambers, loadingProjects, loadingTestProjects, loadingUsageLogs, projects, testProjects, usageLogs])
 
   return (
-    <Container maxWidth="xl">
-      <Box py={4}>
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-          flexWrap="wrap"
-        >
-          <Typography variant="h4" component="h1" gutterBottom sx={{ mb: { xs: 2, sm: 0 } }}>
-            使用记录管理
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: { xs: 2, sm: 0 } }}>
-            <Button
-              variant="outlined"
-              startIcon={<FileDownloadIcon />}
-              onClick={handleExportAll}
-              sx={{ whiteSpace: 'nowrap' }}
-            >
-              导出Excel
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenForm()}
-              sx={{ whiteSpace: 'nowrap' }}
-            >
-              登记新使用记录
-            </Button>
-          </Box>
+    <PageShell
+      title="使用记录管理"
+      maxWidth="xl"
+      actions={
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportAll} sx={{ whiteSpace: 'nowrap' }}>
+            导出Excel
+          </Button>
+          <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpenForm()} sx={{ whiteSpace: 'nowrap' }}>
+            登记新使用记录
+          </Button>
         </Box>
-
+      }
+    >
         {/* 2. 渲染 UsageLogList 组件并传递 props */}
         <UsageLogList
           onViewDetails={handleViewDetails}
@@ -190,26 +167,13 @@ const UsageLogPage: React.FC = () => {
           />
         )}
 
-        {/* 删除确认对话框 */}
-        <Dialog
+        <ConfirmDialog
           open={isConfirmDeleteDialogOpen}
+          title="确认删除"
+          description="您确定要删除这条使用记录吗？此操作无法撤销。"
           onClose={handleCloseConfirmDelete}
-          aria-labelledby="confirm-delete-log-dialog-title"
-          aria-describedby="confirm-delete-log-dialog-description"
-        >
-          <DialogTitle id="confirm-delete-log-dialog-title">确认删除</DialogTitle>
-          <DialogContent>
-            <DialogContentText id="confirm-delete-log-dialog-description">
-              您确定要删除这条使用记录吗？此操作无法撤销。
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseConfirmDelete}>取消</Button>
-            <Button onClick={handleConfirmDelete} color="error" autoFocus>
-              确认删除
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onConfirm={handleConfirmDelete}
+        />
 
         {/* 操作结果提示 */}
         <Snackbar
@@ -222,9 +186,7 @@ const UsageLogPage: React.FC = () => {
             {snackbarMessage}
           </Alert>
         </Snackbar>
-
-      </Box>
-    </Container>
+    </PageShell>
   );
 };
 

@@ -43,7 +43,6 @@ const LoginPage: React.FC = () => {
         </Typography>
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
           <TextField
-            margin="normal"
             required
             fullWidth
             id="username"
@@ -55,7 +54,6 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setUsername(e.target.value)}
           />
           <TextField // 新增：密码输入框
-            margin="normal"
             required
             fullWidth
             name="password"

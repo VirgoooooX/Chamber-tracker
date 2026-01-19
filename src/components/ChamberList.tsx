@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Box, 
   Typography, 
-  Paper, 
   Table, 
   TableBody, 
   TableCell, 
@@ -12,7 +11,7 @@ import {
   Button,
   Chip,
   Alert,
-  CircularProgress // 添加导入
+  CircularProgress
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add'; // 添加导入
 import { fetchChambers, deleteChamber } from '../store/chambersSlice';
@@ -20,6 +19,8 @@ import IconButton from '@mui/material/IconButton';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import ConfirmDialog from './ConfirmDialog';
+import AppCard from './AppCard';
 
 interface ChamberListProps {
   onEdit: (id: string) => void;
@@ -29,19 +30,29 @@ interface ChamberListProps {
 const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
   const dispatch = useAppDispatch()
   const { chambers, loading, error } = useAppSelector((state) => state.chambers)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchChambers());
   }, [dispatch]);
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('确定要删除这个环境箱吗？')) {
-      dispatch(deleteChamber(id));
-    }
+  const handleDeleteClick = (id: string) => setPendingDeleteId(id);
+
+  const handleCloseDelete = () => setPendingDeleteId(null);
+
+  const handleConfirmDelete = () => {
+    if (!pendingDeleteId) return;
+    dispatch(deleteChamber(pendingDeleteId));
+    setPendingDeleteId(null);
   };
 
   if (loading) {
-    return <CircularProgress />;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>正在加载环境箱列表...</Typography>
+      </Box>
+    );
   }
 
   if (error) {
@@ -50,56 +61,76 @@ const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">环境箱列表</Typography>
-        <Button variant="contained" color="primary" onClick={onAddNew} startIcon={<AddIcon />}>
-          添加环境箱
-        </Button>
-      </Box>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
+      <AppCard
+        title="环境箱列表"
+        actions={
+          <Button variant="contained" color="primary" onClick={onAddNew} startIcon={<AddIcon />}>
+            添加环境箱
+          </Button>
+        }
+        contentSx={{ mx: -2.5, mb: -2.5 }}
+      >
+        <TableContainer component={Box} sx={{ border: 'none', boxShadow: 'none', borderRadius: 0 }}>
+          <Table size="small">
+          <TableHead sx={{ backgroundColor: 'action.hover' }}>
             <TableRow>
-              <TableCell>名称</TableCell>
-              <TableCell>描述</TableCell>
-              <TableCell>状态</TableCell>
-              <TableCell>厂商</TableCell>
-              <TableCell>型号</TableCell>
-              <TableCell>校验日期</TableCell>
-              <TableCell>创建时间</TableCell>
-              <TableCell>操作</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>名称</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>描述</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>厂商</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>型号</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>校验日期</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>创建时间</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {chambers.map((chamber) => (
-              <TableRow key={chamber.id}>
-                <TableCell>{chamber.name}</TableCell>
-                <TableCell>{chamber.description || '-'}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={chamber.status === 'available' ? '可用' : chamber.status === 'in-use' ? '使用中' : '维护中'} 
-                    color={chamber.status === 'available' ? 'success' : chamber.status === 'in-use' ? 'warning' : 'error'} 
-                  />
-                </TableCell>
-                <TableCell>{chamber.manufacturer}</TableCell>
-                <TableCell>{chamber.model}</TableCell>
-                <TableCell>
-                  {chamber.calibrationDate ? new Date(chamber.calibrationDate).toLocaleDateString() : '-'}
-                </TableCell>
-                <TableCell>{new Date(chamber.createdAt).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => onEdit(chamber.id)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => handleDelete(chamber.id)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
+            {chambers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  暂无数据
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              chambers.map((chamber) => (
+                <TableRow key={chamber.id} hover>
+                  <TableCell>{chamber.name}</TableCell>
+                  <TableCell>{chamber.description || '-'}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={chamber.status === 'available' ? '可用' : chamber.status === 'in-use' ? '使用中' : '维护中'} 
+                      color={chamber.status === 'available' ? 'success' : chamber.status === 'in-use' ? 'warning' : 'error'} 
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>{chamber.manufacturer}</TableCell>
+                  <TableCell>{chamber.model}</TableCell>
+                  <TableCell>
+                    {chamber.calibrationDate ? new Date(chamber.calibrationDate).toLocaleDateString() : '-'}
+                  </TableCell>
+                  <TableCell>{new Date(chamber.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell align="center">
+                    <IconButton onClick={() => onEdit(chamber.id)} size="small" color="primary">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton onClick={() => handleDeleteClick(chamber.id)} size="small" color="error">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
-        </Table>
-      </TableContainer>
+          </Table>
+        </TableContainer>
+      </AppCard>
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="确认删除"
+        description="您确定要删除这个环境箱吗？此操作无法撤销。"
+        onClose={handleCloseDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </Box>
   );
 };

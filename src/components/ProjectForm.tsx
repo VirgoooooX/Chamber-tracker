@@ -18,6 +18,7 @@ import {
   ListItemSecondaryAction,
   Chip,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Project, Config } from '../types'; // Config 类型现在包含 remark
@@ -46,6 +47,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
   // 新工作流状态
   const [newWf, setNewWf] = useState('');
   const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     if (open) {
@@ -67,6 +71,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
       // setConfigParams(''); // 清除旧参数状态
       setConfigRemark(''); // 清除新备注状态
       setNewWf('');
+      setSnackbarOpen(false);
     }
   }, [project, open]);
 
@@ -105,8 +110,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
 
   const handleAddConfig = () => {
     if (!configName.trim()) {
-        alert('Config 名称不能为空');
-        return;
+      setSnackbarMessage('Config 名称不能为空');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
     }
     
     const trimmedRemark = configRemark.trim(); // 先 trim
@@ -133,11 +140,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
 
   const handleAddWf = () => { // "Wf" 可以考虑是否也改为 "WaterFall Item" 之类的
     if (!newWf.trim()) {
-        alert('WaterFall 名称不能为空'); // 修改提示
-        return;
+      setSnackbarMessage('WaterFall 名称不能为空');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
     }
     if (wfs.includes(newWf.trim())) {
-      alert('该 WaterFall 已存在'); // 修改提示
+      setSnackbarMessage('该 WaterFall 已存在');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       return;
     }
     setWfs([...wfs, newWf.trim()]);
@@ -152,9 +163,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
     <Dialog open={open} onClose={() => onClose()} maxWidth="md" fullWidth>
       <DialogTitle>{project ? '编辑项目' : '添加新项目'}</DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField label="项目名称*" value={name} onChange={(e) => setName(e.target.value)} fullWidth required autoFocus />
+        <DialogContent dividers>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+            <TextField label="项目名称" value={name} onChange={(e) => setName(e.target.value)} fullWidth required autoFocus />
             <TextField label="项目描述" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth multiline rows={3} />
             <TextField label="客户名称" value={customerName} onChange={(e) => setCustomerName(e.target.value)} fullWidth />
             
@@ -164,13 +175,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
             <Box>
               <Typography variant="h6" gutterBottom>Config</Typography> {/* 修改标题 */}
               <Box display="flex" gap={1} mb={1} alignItems="flex-start">
-                <TextField label="新 Config 名称" value={configName} onChange={(e) => setConfigName(e.target.value)} size="small" sx={{flexGrow: 1}}/>
+                <TextField label="新 Config 名称" value={configName} onChange={(e) => setConfigName(e.target.value)} sx={{flexGrow: 1}}/>
                 {/* 修改：配置参数输入框变为备注输入框 */}
                 <TextField 
                   label="备注 (可选)" 
                   value={configRemark} 
                   onChange={(e) => setConfigRemark(e.target.value)} 
-                  size="small" 
                   multiline 
                   rows={2} 
                   sx={{flexGrow: 2}}
@@ -197,7 +207,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
             <Box>
               <Typography variant="h6" gutterBottom>WaterFall</Typography> {/* 修改标题 */}
               <Box display="flex" gap={1} mb={1} alignItems="center">
-                <TextField label="新 WaterFall 名称" value={newWf} onChange={(e) => setNewWf(e.target.value)} size="small" sx={{flexGrow: 1}}/> {/* 修改标签 */}
+                <TextField label="新 WaterFall 名称" value={newWf} onChange={(e) => setNewWf(e.target.value)} sx={{flexGrow: 1}}/> {/* 修改标签 */}
                 <Button onClick={handleAddWf} variant="outlined" size="medium">添加 WaterFall</Button> {/* 修改按钮文本 */}
               </Box>
               <Box display="flex" flexWrap="wrap" gap={1}>
@@ -216,6 +226,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ open, onClose, project }) => 
           </Button>
         </DialogActions>
       </form>
+      <Snackbar open={snackbarOpen} autoHideDuration={3500} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }} variant="filled">
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 };

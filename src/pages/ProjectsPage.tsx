@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Container, Box, Typography } from '@mui/material';
 import ProjectList from '../components/ProjectList';
 import ProjectForm from '../components/ProjectForm';
 import ProjectDetails from '../components/ProjectDetails';
 import { Project } from '../types';
 import { useAppSelector } from '../store/hooks'
+import PageShell from '../components/PageShell';
 
 const ProjectsPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
@@ -42,31 +42,25 @@ const ProjectsPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box py={4}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          项目管理
-        </Typography>
-        
-        <ProjectList 
-          onEdit={handleEdit}
-          onAddNew={handleAddNew}
-          onViewDetails={handleViewDetails}
-        />
-        
-        <ProjectForm 
-          open={formOpen}
-          onClose={handleCloseForm}
-          project={selectedProject}
-        />
-        
-        <ProjectDetails 
-          open={detailsOpen}
-          onClose={handleCloseDetails}
-          projectId={selectedProjectId}
-        />
-      </Box>
-    </Container>
+    <PageShell title="项目管理">
+      <ProjectList 
+        onEdit={handleEdit}
+        onAddNew={handleAddNew}
+        onViewDetails={handleViewDetails}
+      />
+      
+      <ProjectForm 
+        open={formOpen}
+        onClose={handleCloseForm}
+        project={selectedProject}
+      />
+      
+      <ProjectDetails 
+        open={detailsOpen}
+        onClose={handleCloseDetails}
+        projectId={selectedProjectId}
+      />
+    </PageShell>
   );
 };
 

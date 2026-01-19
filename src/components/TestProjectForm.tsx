@@ -16,6 +16,7 @@ import {
   FormHelperText,
   CircularProgress,
   Alert,
+  Stack,
 } from '@mui/material';
 import { TestProject, Project } from '../types'; // 导入 Project 类型
 import { addTestProject, updateTestProject } from '../store/testProjectsSlice';
@@ -127,7 +128,7 @@ const TestProjectForm: React.FC<TestProjectFormProps> = ({ open, onClose, testPr
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{testProject ? '编辑测试项目' : '添加测试项目'}</DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent dividers>
           {/* 如果项目列表正在加载，显示提示 */}
           {loadingProjects && open && (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', my: 2 }}>
@@ -141,10 +142,10 @@ const TestProjectForm: React.FC<TestProjectFormProps> = ({ open, onClose, testPr
              </Alert>
           )}
 
-          <Box display="flex" flexDirection="column" gap={3} paddingTop={1}>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
             {/* 名称 */}
             <TextField
-              label="名称*"
+              label="名称"
               value={name}
               onChange={(e) => setName(e.target.value)}
               fullWidth
@@ -156,7 +157,7 @@ const TestProjectForm: React.FC<TestProjectFormProps> = ({ open, onClose, testPr
 
             {/* 温度 */}
             <TextField
-              label="温度 (°C)*"
+              label="温度 (°C)"
               type="number" // 使用 number 类型输入，浏览器可能提供 +/- 按钮
               value={temperature}
               onChange={(e) => setTemperature(e.target.value)}
@@ -171,7 +172,7 @@ const TestProjectForm: React.FC<TestProjectFormProps> = ({ open, onClose, testPr
 
             {/* 湿度 */}
             <TextField
-              label="湿度 (%)*"
+              label="湿度 (%)"
               type="number"
               value={humidity}
               onChange={(e) => setHumidity(e.target.value)}
@@ -186,7 +187,7 @@ const TestProjectForm: React.FC<TestProjectFormProps> = ({ open, onClose, testPr
 
             {/* 持续时间 */}
             <TextField
-              label="持续时间 (小时)*"
+              label="持续时间 (小时)"
               type="number"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
@@ -229,7 +230,7 @@ const TestProjectForm: React.FC<TestProjectFormProps> = ({ open, onClose, testPr
                 {formSubmitError}
               </Alert>
             )}
-          </Box>
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>取消</Button>

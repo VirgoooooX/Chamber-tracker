@@ -9,7 +9,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  Paper,
   IconButton,
   Tooltip,
   CircularProgress,
@@ -18,6 +17,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AppCard from './AppCard';
 import { format, parseISO, isValid } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { TestProject } from '../types';
@@ -83,59 +83,57 @@ const TestProjectList: React.FC<TestProjectListProps> = ({ onEdit, onDelete }) =
   }
 
   return (
-    <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 650 }} aria-label="测试项目列表">
-        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
-          <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>名称</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }} align="right">温度 (°C)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }} align="right">湿度 (%)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }} align="right">时长 (小时)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>关联项目 ID</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>创建时间</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }} align="center">操作</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {testProjects.length === 0 && !loading && dataFetchedRef.current ? (
+    <AppCard title="测试项目列表" contentSx={{ mx: -2.5, mb: -2.5 }}>
+      <TableContainer component={Box} sx={{ border: 'none', boxShadow: 'none', borderRadius: 0 }}>
+        <Table sx={{ minWidth: 650 }} aria-label="测试项目列表" size="small">
+          <TableHead sx={{ backgroundColor: 'action.hover' }}>
             <TableRow>
-              <TableCell colSpan={7} align="center">
-                没有找到测试项目数据。
-              </TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>名称</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">温度 (°C)</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">湿度 (%)</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">时长 (小时)</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>关联项目 ID</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>创建时间</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">操作</TableCell>
             </TableRow>
-          ) : (
-            testProjects.map((tp) => (
-              <TableRow
-                key={tp.id}
-                hover 
-                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {tp.name}
-                </TableCell>
-                <TableCell align="right">{tp.temperature}</TableCell>
-                <TableCell align="right">{tp.humidity}</TableCell>
-                <TableCell align="right">{tp.duration}</TableCell>
-                <TableCell>{tp.projectId || '无'}</TableCell> 
-                <TableCell>{formatDate(tp.createdAt)}</TableCell>
-                <TableCell align="center">
-                  <Tooltip title="编辑">
-                    <IconButton onClick={() => onEdit(tp)} size="small" color="primary">
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="删除">
-                    <IconButton onClick={() => onDelete(tp.id)} size="small" color="error">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+          </TableHead>
+          <TableBody>
+            {testProjects.length === 0 && !loading && dataFetchedRef.current ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  没有找到测试项目数据。
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+            ) : (
+              testProjects.map((tp) => (
+                <TableRow key={tp.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableCell component="th" scope="row">
+                    {tp.name}
+                  </TableCell>
+                  <TableCell align="right">{tp.temperature}</TableCell>
+                  <TableCell align="right">{tp.humidity}</TableCell>
+                  <TableCell align="right">{tp.duration}</TableCell>
+                  <TableCell>{tp.projectId || '无'}</TableCell>
+                  <TableCell>{formatDate(tp.createdAt)}</TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="编辑">
+                      <IconButton onClick={() => onEdit(tp)} size="small" color="primary">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="删除">
+                      <IconButton onClick={() => onDelete(tp.id)} size="small" color="error">
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </AppCard>
   );
 };
 

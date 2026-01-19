@@ -12,6 +12,7 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
+  Stack,
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'; // 新增
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'; // 新增
@@ -112,9 +113,9 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth> {/* 调整宽度以容纳更多字段 */}
       <DialogTitle>{chamber ? '编辑环境箱' : '添加环境箱'}</DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent dividers>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}> {/* 新增 */}
-            <Box display="flex" flexDirection="column" gap={3} paddingTop={1}> {/* 调整间距 */}
+            <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
                 label="名称"
                 value={name}
@@ -176,7 +177,7 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
                   }
                 }}
               />
-            </Box>
+            </Stack>
           </LocalizationProvider>
         </DialogContent>
         <DialogActions>

@@ -2,21 +2,17 @@
 import React, { useState, useCallback, useEffect } from 'react'; // useEffect might be needed if fetching at page level
 import { useDispatch } from 'react-redux';
 import { 
-  Container, 
   Box, 
   Typography, 
   Button,
-  Dialog, // 用于删除确认
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Snackbar, // 用于显示操作结果
   Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import TestProjectList from '../components/TestProjectList'; // 导入列表组件
 import TestProjectForm from '../components/TestProjectForm'; // 导入表单组件
+import PageShell from '../components/PageShell';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { AppDispatch } from '../store';
 import { TestProject } from '../types';
 // 导入 deleteTestProject。fetchTestProjects 通常在 TestProjectList 中处理，
@@ -93,27 +89,14 @@ const TestProjectsPage: React.FC = () => {
   // }, [dispatch]);
 
   return (
-    <Container maxWidth="lg">
-      <Box py={4}>
-        <Box 
-          display="flex" 
-          justifyContent="space-between" 
-          alignItems="center" 
-          mb={3} 
-          flexWrap="wrap"
-        >
-          <Typography variant="h4" component="h1" gutterBottom sx={{ mb: { xs: 2, sm: 0 } }}>
-            测试项目管理
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenForm()}
-          >
-            添加测试项目
-          </Button>
-        </Box>
-
+    <PageShell
+      title="测试项目管理"
+      actions={
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenForm()}>
+          添加测试项目
+        </Button>
+      }
+    >
         <TestProjectList 
           onEdit={handleOpenForm}
           onDelete={handleDeleteClick}
@@ -129,26 +112,13 @@ const TestProjectsPage: React.FC = () => {
           />
         )}
 
-        {/* 删除确认对话框 */}
-        <Dialog
+        <ConfirmDialog
           open={isConfirmDeleteDialogOpen}
+          title="确认删除"
+          description="您确定要删除这个测试项目吗？此操作无法撤销。"
           onClose={handleCloseConfirmDelete}
-          aria-labelledby="confirm-delete-dialog-title"
-          aria-describedby="confirm-delete-dialog-description"
-        >
-          <DialogTitle id="confirm-delete-dialog-title">确认删除</DialogTitle>
-          <DialogContent>
-            <DialogContentText id="confirm-delete-dialog-description">
-              您确定要删除这个测试项目吗？此操作无法撤销。
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseConfirmDelete}>取消</Button>
-            <Button onClick={handleConfirmDelete} color="error" autoFocus>
-              确认删除
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onConfirm={handleConfirmDelete}
+        />
 
         {/* 操作结果提示 */}
         <Snackbar 
@@ -161,8 +131,7 @@ const TestProjectsPage: React.FC = () => {
             {snackbarMessage}
           </Alert>
         </Snackbar>
-      </Box>
-    </Container>
+    </PageShell>
   );
 };
 

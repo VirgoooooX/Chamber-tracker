@@ -1,8 +1,8 @@
 // src/components/UsageLogList.tsx
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box, Typography, TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
-  Paper, IconButton, Tooltip, CircularProgress, Alert, Button, Chip,
+  IconButton, Tooltip, CircularProgress, Alert, Button, Chip,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
@@ -19,6 +19,8 @@ import { fetchProjects } from '../store/projectsSlice';
 import { fetchTestProjects } from '../store/testProjectsSlice';
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'; // 导入辅助函数
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import ConfirmDialog from './ConfirmDialog';
+import AppCard from './AppCard';
 
 interface UsageLogListProps {
   onViewDetails: (logId: string) => void;
@@ -28,6 +30,7 @@ interface UsageLogListProps {
 
 const UsageLogList: React.FC<UsageLogListProps> = ({ onViewDetails, onEdit, onDelete }) => {
   const dispatch = useAppDispatch()
+  const [pendingCompleteLogId, setPendingCompleteLogId] = useState<string | null>(null);
 
   const { usageLogs, loading: loadingUsageLogs, error: usageLogsError } = useAppSelector((state) => state.usageLogs)
   const { chambers, loading: loadingChambers, error: chambersError } = useAppSelector((state) => state.chambers)
@@ -175,126 +178,135 @@ const UsageLogList: React.FC<UsageLogListProps> = ({ onViewDetails, onEdit, onDe
   }
 
   return (
-    <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 900 }} aria-label="使用记录列表">
-        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
-          <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>环境箱</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>使用人</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>开始时间</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>结束时间</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>状态</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>关联项目</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>已选Configs</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>已选WaterFall</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>关联测试项目</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: '150px' }} align="center">操作</TableCell> {/* 调整宽度 */}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {usageLogs.length === 0 && !isLoading && initialLoadDone ? (
-            <TableRow>
-              <TableCell colSpan={10} align="center">
-                没有找到使用记录数据。
-              </TableCell>
-            </TableRow>
-          ) : (
-            usageLogs.map((log) => {
-              const linkedProject = getProject(log.projectId);
-              const configMap = log.projectId ? configByProjectId.get(log.projectId) : undefined;
-              const statusProps = getStatusChipProperties(log);
-              const effectiveStatus = getEffectiveUsageLogStatus(log); // 用于条件判断
-
-              return (
-                <TableRow key={log.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                  <TableCell>{getChamberName(log.chamberId)}</TableCell>
-                  <TableCell>{log.user}</TableCell>
-                  <TableCell>{formatDate(log.startTime)}</TableCell>
-                  <TableCell>{formatDate(log.endTime)}</TableCell>
-                  <TableCell>
-                    <Chip label={statusProps.label} color={statusProps.color} size="small" />
-                  </TableCell>
-                  <TableCell>{linkedProject ? linkedProject.name : (log.projectId || '无')}</TableCell>
-                  <TableCell>
-                    {(() => {
-                      if (log.selectedConfigIds && log.selectedConfigIds.length > 0) {
-                        if (linkedProject && linkedProject.configs) {
-                          return (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '200px', maxHeight: '70px', overflowY: 'auto' }}>
-                              {log.selectedConfigIds.map(configId => {
-                                const config = configMap?.get(configId);
-                                return (
-                                  <Tooltip key={configId} title={config?.remark || config?.name || `Config ID: ${configId}`}>
-                                    <Chip label={config?.name || `ID: ${configId.substring(0, 6)}`} size="small" variant="outlined" />
-                                  </Tooltip>
-                                );
-                              })}
-                            </Box>
-                          );
-                        }
-                        if (log.projectId && !linkedProject && loadingProjects) {
-                          return '加载中...';
-                        }
-                        return (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '200px', maxHeight: '70px', overflowY: 'auto' }}>
-                            {log.selectedConfigIds.map(configId => (
-                              <Tooltip key={configId} title={`Config ID: ${configId}`}>
-                                <Chip label={`ID: ${configId.substring(0, 6)}`} size="small" variant="outlined" />
-                              </Tooltip>
-                            ))}
-                          </Box>
-                        );
-                      }
-                      return '无';
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    {log.selectedWaterfall ? (
-                      <Chip label={log.selectedWaterfall} size="small" variant="outlined" color="secondary" />
-                    ) : '无'}
-                  </TableCell>
-                  <TableCell>{getTestProjectName(log.testProjectId)}</TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="查看详情">
-                      <IconButton onClick={() => onViewDetails(log.id)} size="small" color="info" sx={{ p: 0.5 }}>
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="编辑">
-                      <IconButton onClick={() => onEdit(log)} size="small" color="primary" sx={{ p: 0.5 }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    {/* "标记为完成" 按钮 */}
-                    {(effectiveStatus === 'in-progress' || effectiveStatus === 'overdue') && (
-                      <Tooltip title="标记为已完成">
-                        <IconButton
-                          onClick={() => {
-                            if (window.confirm(`确定要将此记录标记为 "已完成" 吗？`)) {
-                              dispatch(markLogAsCompleted(log.id));
-                            }
-                          }}
-                          size="small"
-                          color="success" // MUI success color (green)
-                          sx={{ p: 0.5 }}
-                        >
-                          <CheckCircleOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="删除">
-                      <IconButton onClick={() => onDelete(log.id)} size="small" color="error" sx={{ p: 0.5 }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+    <>
+      <AppCard contentSx={{ mx: -2.5, mb: -2.5 }}>
+        <TableContainer component={Box} sx={{ border: 'none', boxShadow: 'none', borderRadius: 0 }}>
+          <Table sx={{ minWidth: 900 }} aria-label="使用记录列表" size="small">
+            <TableHead sx={{ backgroundColor: 'action.hover' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>环境箱</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>使用人</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>开始时间</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>结束时间</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>关联项目</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>已选Configs</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>已选WaterFall</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>关联测试项目</TableCell>
+                <TableCell sx={{ fontWeight: 600, minWidth: '150px' }} align="center">
+                  操作
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {usageLogs.length === 0 && !isLoading && initialLoadDone ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center">
+                    没有找到使用记录数据。
                   </TableCell>
                 </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+              ) : (
+                usageLogs.map((log) => {
+                  const linkedProject = getProject(log.projectId);
+                  const configMap = log.projectId ? configByProjectId.get(log.projectId) : undefined;
+                  const statusProps = getStatusChipProperties(log);
+                  const effectiveStatus = getEffectiveUsageLogStatus(log);
+
+                  return (
+                    <TableRow key={log.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableCell>{getChamberName(log.chamberId)}</TableCell>
+                      <TableCell>{log.user}</TableCell>
+                      <TableCell>{formatDate(log.startTime)}</TableCell>
+                      <TableCell>{formatDate(log.endTime)}</TableCell>
+                      <TableCell>
+                        <Chip label={statusProps.label} color={statusProps.color} size="small" />
+                      </TableCell>
+                      <TableCell>{linkedProject ? linkedProject.name : (log.projectId || '无')}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          if (log.selectedConfigIds && log.selectedConfigIds.length > 0) {
+                            if (linkedProject && linkedProject.configs) {
+                              return (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '200px', maxHeight: '70px', overflowY: 'auto' }}>
+                                  {log.selectedConfigIds.map((configId) => {
+                                    const config = configMap?.get(configId);
+                                    return (
+                                      <Tooltip key={configId} title={config?.remark || config?.name || `Config ID: ${configId}`}>
+                                        <Chip label={config?.name || `ID: ${configId.substring(0, 6)}`} size="small" variant="outlined" />
+                                      </Tooltip>
+                                    );
+                                  })}
+                                </Box>
+                              );
+                            }
+                            if (log.projectId && !linkedProject && loadingProjects) {
+                              return '加载中...';
+                            }
+                            return (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '200px', maxHeight: '70px', overflowY: 'auto' }}>
+                                {log.selectedConfigIds.map((configId) => (
+                                  <Tooltip key={configId} title={`Config ID: ${configId}`}>
+                                    <Chip label={`ID: ${configId.substring(0, 6)}`} size="small" variant="outlined" />
+                                  </Tooltip>
+                                ))}
+                              </Box>
+                            );
+                          }
+                          return '无';
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        {log.selectedWaterfall ? (
+                          <Chip label={log.selectedWaterfall} size="small" variant="outlined" color="secondary" />
+                        ) : '无'}
+                      </TableCell>
+                      <TableCell>{getTestProjectName(log.testProjectId)}</TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="查看详情">
+                          <IconButton onClick={() => onViewDetails(log.id)} size="small" color="info" sx={{ p: 0.5 }}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="编辑">
+                          <IconButton onClick={() => onEdit(log)} size="small" color="primary" sx={{ p: 0.5 }}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {(effectiveStatus === 'in-progress' || effectiveStatus === 'overdue') && (
+                          <Tooltip title="标记为已完成">
+                            <IconButton onClick={() => setPendingCompleteLogId(log.id)} size="small" color="success" sx={{ p: 0.5 }}>
+                              <CheckCircleOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="删除">
+                          <IconButton onClick={() => onDelete(log.id)} size="small" color="error" sx={{ p: 0.5 }}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </AppCard>
+      <ConfirmDialog
+        open={Boolean(pendingCompleteLogId)}
+        title="确认标记完成"
+        description="确定要将该记录标记为“已完成”吗？"
+        confirmText="标记完成"
+        confirmColor="success"
+        onClose={() => setPendingCompleteLogId(null)}
+        onConfirm={() => {
+          if (!pendingCompleteLogId) return;
+          dispatch(markLogAsCompleted(pendingCompleteLogId));
+          setPendingCompleteLogId(null);
+        }}
+      />
+    </>
   );
 };
 
