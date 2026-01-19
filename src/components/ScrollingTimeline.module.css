@@ -40,8 +40,10 @@
 }
 
 .timelineHeaderDates {
-  display: flex;
+  position: relative;
+  display: block;
   flex-shrink: 0;
+  height: 100%;
 }
 
 .timelineBodyRow {

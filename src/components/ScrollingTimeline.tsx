@@ -352,6 +352,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   const [processedHolidays, setProcessedHolidays] = useState<Map<string, HolidayDetail>>(new Map());
   const [holidaysLoading, setHolidaysLoading] = useState(true);
   const [holidaysError, setHolidaysError] = useState<string | null>(null);
+  const loadedHolidayYearsRef = useRef<Set<number>>(new Set());
 
   const dateHeaders = useMemo(() => generateDateHeadersFromRange(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
   const totalTimelineWidth = useMemo(() => dateHeaders.length * DAY_WIDTH_PX, [dateHeaders.length]);
@@ -362,6 +363,35 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   const isExtendingLeftRef = useRef(false);
   const isExtendingRightRef = useRef(false);
   const [, startTransition] = useTransition();
+  const [visibleDayIndexRange, setVisibleDayIndexRange] = useState<{ startIndex: number; endIndexExclusive: number }>({
+    startIndex: 0,
+    endIndexExclusive: 0,
+  });
+  const rafUpdateVisibleRangeRef = useRef<number | null>(null);
+
+  const updateVisibleDayIndexRange = useCallback(() => {
+    const container = timelineContainerRef.current;
+    const totalDays = dateHeaders.length;
+    if (!container || totalDays === 0) {
+      setVisibleDayIndexRange({ startIndex: 0, endIndexExclusive: 0 });
+      return;
+    }
+
+    const visibleGridWidth = Math.max(0, container.clientWidth - CHAMBER_NAME_WIDTH_PX);
+    const gridScrollLeft = Math.max(0, container.scrollLeft - CHAMBER_NAME_WIDTH_PX);
+
+    const overscanDays = 20;
+    const startIndex = Math.max(0, Math.floor(gridScrollLeft / DAY_WIDTH_PX) - overscanDays);
+    const endIndexExclusive = Math.min(
+      totalDays,
+      Math.ceil((gridScrollLeft + visibleGridWidth) / DAY_WIDTH_PX) + overscanDays
+    );
+
+    setVisibleDayIndexRange((prev) => {
+      if (prev.startIndex === startIndex && prev.endIndexExclusive === endIndexExclusive) return prev;
+      return { startIndex, endIndexExclusive };
+    });
+  }, [dateHeaders.length]);
 
   const handleTimelineScroll = useCallback(() => {
     const container = timelineContainerRef.current;
@@ -390,7 +420,14 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
         setRangeEnd((prevEnd) => addMonths(prevEnd, 1));
       });
     }
-  }, []);
+
+    if (rafUpdateVisibleRangeRef.current === null) {
+      rafUpdateVisibleRangeRef.current = window.requestAnimationFrame(() => {
+        rafUpdateVisibleRangeRef.current = null;
+        updateVisibleDayIndexRange();
+      });
+    }
+  }, [startTransition, updateVisibleDayIndexRange]);
 
   useLayoutEffect(() => {
     const container = timelineContainerRef.current;
@@ -400,7 +437,8 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     }
     isExtendingLeftRef.current = false;
     isExtendingRightRef.current = false;
-  }, [dateHeaders.length]);
+    updateVisibleDayIndexRange();
+  }, [dateHeaders.length, updateVisibleDayIndexRange]);
 
   const fetchAndProcessHolidaysForYearInternal = useCallback(async (year: number, region: string): Promise<Map<string, HolidayDetail>> => { /* ... (保持不变) ... */
     const yearHolidaysMap = new Map<string, HolidayDetail>();
@@ -440,50 +478,61 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     }
     return yearHolidaysMap;
   }, []);
-  useEffect(() => { /* ... (holiday loading useEffect - 保持不变) ... */
-    const loadHolidaysForVisibleRange = async () => {
-      if (dateHeaders.length === 0) {
-        setHolidaysLoading(false);
-        return;
-      }
+  useEffect(() => {
+    loadedHolidayYearsRef.current = new Set();
+    setProcessedHolidays(new Map());
+    setHolidaysLoading(true);
+    setHolidaysError(null);
+  }, [regionCode]);
+
+  useEffect(() => {
+    if (dateHeaders.length === 0) {
+      setHolidaysLoading(false);
+      return;
+    }
+
+    const yearsInView: number[] = [];
+    const startYear = getYear(dateHeaders[0]);
+    const endYear = getYear(dateHeaders[dateHeaders.length - 1]);
+    for (let y = startYear; y <= endYear; y++) yearsInView.push(y);
+
+    const missingYears = yearsInView.filter((y) => !loadedHolidayYearsRef.current.has(y));
+    if (missingYears.length === 0) {
+      if (processedHolidays.size === 0) setHolidaysLoading(false);
+      return;
+    }
+
+    const shouldToggleLoading = processedHolidays.size === 0;
+    if (shouldToggleLoading) {
       setHolidaysLoading(true);
       setHolidaysError(null);
-      const newHolidaysMap = new Map<string, HolidayDetail>();
-      const yearsInView = new Set<number>();
+    }
 
-      const startYear = getYear(dateHeaders[0]);
-      const endYear = getYear(dateHeaders[dateHeaders.length - 1]);
-      for (let y = startYear; y <= endYear; y++) {
-        yearsInView.add(y);
-      }
-      if (yearsInView.size === 0 && dateHeaders.length > 0) {
-          yearsInView.add(getYear(dateHeaders[0]));
-      } else if (yearsInView.size === 0) {
-          yearsInView.add(getYear(new Date()));
-      }
-
-      let overallErrorOccurred = false;
-      for (const year of Array.from(yearsInView)) {
-        try {
-          const yearDataMap = await fetchAndProcessHolidaysForYearInternal(year, regionCode);
-          yearDataMap.forEach((value, key) => newHolidaysMap.set(key, value));
-        } catch (err: any) {
-          overallErrorOccurred = true;
-          console.error(`Error processing holidays for year ${year} in loadHolidaysForVisibleRange:`, err);
-          if (!holidaysError) {
-             setHolidaysError(err.message || `Failed to load holiday data for ${year}.`);
+    const loadMissingYears = async () => {
+      try {
+        for (const year of missingYears) {
+          try {
+            const yearDataMap = await fetchAndProcessHolidaysForYearInternal(year, regionCode);
+            loadedHolidayYearsRef.current.add(year);
+            if (yearDataMap.size > 0) {
+              setProcessedHolidays((prev) => {
+                const next = new Map(prev);
+                yearDataMap.forEach((value, key) => next.set(key, value));
+                return next;
+              });
+            }
+          } catch (err: any) {
+            console.error(`Error processing holidays for year ${year}:`, err);
+            setHolidaysError((prev) => prev ?? (err.message || `Failed to load holiday data for ${year}.`));
           }
         }
+      } finally {
+        if (shouldToggleLoading) setHolidaysLoading(false);
       }
-      setProcessedHolidays(newHolidaysMap);
-      if (overallErrorOccurred && newHolidaysMap.size > 0 && holidaysError) {
-         console.warn("Some holiday data failed to load, but partial data is available.");
-      }
-      setHolidaysLoading(false);
     };
 
-    loadHolidaysForVisibleRange();
-  }, [dateHeaders, regionCode, fetchAndProcessHolidaysForYearInternal]);
+    loadMissingYears();
+  }, [dateHeaders, regionCode, fetchAndProcessHolidaysForYearInternal, processedHolidays.size]);
 
   const getDayClassification = useCallback((date: Date): { /* ... (保持不变) ... */
     type: 'weekday' | 'weekendRest' | 'publicHolidayLowWage' | 'publicHolidayHighWage' | 'workdayOverride',
@@ -694,7 +743,10 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
             环境箱
           </div>
           <div className={styles.timelineHeaderDates} style={{ width: `${totalTimelineWidth}px` }}>
-            {dateHeaders.map((dateHeaderItem, index) => {
+            {dateHeaders
+              .slice(visibleDayIndexRange.startIndex, visibleDayIndexRange.endIndexExclusive)
+              .map((dateHeaderItem, offset) => {
+              const index = visibleDayIndexRange.startIndex + offset;
               const classification = getDayClassification(dateHeaderItem);
               let headerClassName = styles.timelineDateHeader;
               if (classification.type === 'publicHolidayHighWage') { headerClassName += ` ${styles.publicHolidayStrongRedHeader}`; }
@@ -708,7 +760,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                 <div
                   key={index}
                   className={headerClassName}
-                  style={{ minWidth: `${DAY_WIDTH_PX}px`, width: `${DAY_WIDTH_PX}px` }}
+                  style={{ left: `${index * DAY_WIDTH_PX}px`, minWidth: `${DAY_WIDTH_PX}px`, width: `${DAY_WIDTH_PX}px`, position: 'absolute', top: 0 }}
                   title={classification.name || ''}
                 >
                   <div className={styles.dateDisplay}>{formatDateHeader(dateHeaderItem)}</div>
@@ -737,7 +789,10 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
           </div>
 
           <div className={styles.timelineGridContent} style={{ width: `${totalTimelineWidth}px`, minHeight: `${totalTimelineGridHeight}px` }}>
-            {dateHeaders.map((dayCellStartTime, dayIndex) => {
+            {dateHeaders
+              .slice(visibleDayIndexRange.startIndex, visibleDayIndexRange.endIndexExclusive)
+              .map((dayCellStartTime, offset) => {
+              const dayIndex = visibleDayIndexRange.startIndex + offset;
               const classification = getDayClassification(dayCellStartTime);
               let dayBgClass = styles.timelineDayBackground;
               if (classification.type === 'publicHolidayHighWage') {
@@ -776,6 +831,8 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
               const layoutInfo = chamberLayouts.get(chamber.id);
               const logsToRender = layoutInfo ? layoutInfo.logsWithTracks : [];
               const rowTopOffset = chamberRowTopById.get(chamber.id) || 0;
+              const visibleLeftPx = visibleDayIndexRange.startIndex * DAY_WIDTH_PX;
+              const visibleRightPx = visibleDayIndexRange.endIndexExclusive * DAY_WIDTH_PX;
 
               return (
                 <div key={chamber.id} className={styles.timelineRow} style={{ position: 'absolute', top: `${rowTopOffset}px`, height: `${getChamberRowHeight(chamber.id)}px`, width: `${totalTimelineWidth}px` }}>
@@ -791,6 +848,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                     );
 
                     if (!display || width <= 0) return null;
+                    if (left + width < visibleLeftPx || left > visibleRightPx) return null;
 
                     const styling = getBarStylingByEffectiveStatus(logDisplayItem.effectiveStatus);
                     const barTextParts: string[] = [];
