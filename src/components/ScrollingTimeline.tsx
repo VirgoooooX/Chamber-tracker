@@ -6,6 +6,8 @@ import { fetchProjects } from '../store/projectsSlice';
 import { fetchTestProjects } from '../store/testProjectsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import styles from './ScrollingTimeline.module.css';
+import { alpha, useTheme } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
 import {
   format, addDays, eachDayOfInterval, startOfDay as dateFnsStartOfDay,
   differenceInMinutes, max, min, getDay, parseISO, isEqual, getYear, differenceInCalendarDays,
@@ -39,6 +41,8 @@ interface ScrollingTimelineProps {
   onViewUsageLog: (logId: string) => void;
   onDeleteUsageLog?: (logId: string, configId: string) => void;
   regionCode?: 'cn' | 'tw';
+  dayWidthPx?: number;
+  scrollToTodaySignal?: number;
 }
 
 export const DAY_WIDTH_PX = 200;
@@ -66,14 +70,47 @@ interface StatusStyling {
   textColor: string;
 }
 
-export const getBarStylingByEffectiveStatus = (status: UsageLog['status']): StatusStyling => {
-  switch (status) {
-    case 'completed':   return { backgroundColor: '#C8E6C9', borderColor: '#A5D6A7', textColor: '#388E3C' };
-    case 'in-progress': return { backgroundColor: '#FFF3E0', borderColor: '#FFCC80', textColor: '#795548' };
-    case 'not-started': return { backgroundColor: '#E3F2FD', borderColor: '#90CAF9', textColor: '#1E88E5' };
-    case 'overdue':     return { backgroundColor: '#FFCDD2', borderColor: '#EF9A9A', textColor: '#C62828' };
-    default:            return { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0', textColor: '#757575' };
-  }
+const getBarStylingByEffectiveStatus = (theme: Theme, status: UsageLog['status']): StatusStyling => {
+  const main =
+    status === 'completed' ? theme.palette.success.main :
+    status === 'in-progress' ? theme.palette.warning.main :
+    status === 'not-started' ? theme.palette.info.main :
+    status === 'overdue' ? theme.palette.error.main :
+    alpha(theme.palette.text.primary, 0.32);
+
+  const dark =
+    status === 'completed' ? theme.palette.success.dark :
+    status === 'in-progress' ? theme.palette.warning.dark :
+    status === 'not-started' ? theme.palette.info.dark :
+    status === 'overdue' ? theme.palette.error.dark :
+    main;
+
+  return {
+    backgroundColor: alpha(main, 0.16),
+    borderColor: alpha(main, 0.32),
+    textColor: dark,
+  };
+};
+
+const buildTimelineCssVars = (theme: Theme) => {
+  const headerGlass = `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.18)} 0%, ${alpha(theme.palette.primary.main, 0.08)} 100%), ${alpha(theme.palette.background.paper, 0.58)}`;
+  const stickyGlass = `linear-gradient(180deg, ${alpha(theme.palette.secondary.main, 0.16)} 0%, ${alpha(theme.palette.secondary.main, 0.06)} 100%), ${alpha(theme.palette.background.paper, 0.62)}`;
+  const vars: Record<string, string> = {
+    ['--timeline-bg']: alpha(theme.palette.background.paper, 0.95),
+    ['--timeline-header-bg']: headerGlass,
+    ['--timeline-sticky-bg']: stickyGlass,
+    ['--timeline-border']: theme.palette.divider,
+    ['--timeline-grid-line']: alpha(theme.palette.text.primary, 0.08),
+    ['--timeline-grid-line-soft']: alpha(theme.palette.text.primary, 0.06),
+    ['--timeline-weekend-bg']: alpha(theme.palette.text.primary, 0.03),
+    ['--timeline-holiday-bg']: alpha(theme.palette.error.main, 0.08),
+    ['--timeline-workday-override-bg']: alpha(theme.palette.text.primary, 0.02),
+    ['--timeline-today-bg']: alpha(theme.palette.info.main, 0.10),
+    ['--timeline-today-text']: theme.palette.info.main,
+    ['--timeline-bar-shadow']: `0 1px 2px ${alpha(theme.palette.text.primary, 0.18)}`,
+    ['--timeline-bar-shadow-hover']: `0 6px 14px ${alpha(theme.palette.text.primary, 0.22)}`,
+  };
+  return vars as unknown as React.CSSProperties;
 };
 
 export const generateDateHeaders = (currentDate: Date, monthsBefore: number, monthsAfter: number) => {
@@ -116,11 +153,12 @@ const generateDateHeadersFromRange = (rangeStart: Date, rangeEnd: Date) => {
 };
 
 // --- calculateBarPositionAndWidth (修改为计算单个连续条) ---
-export const calculateBarPositionAndWidth = (
+const calculateBarPositionAndWidth = (
   log: UsageLog,
   timelineViewActualStart: Date, // 整个可见时间轴的起始点 (例如 dateHeaders[0])
   timelineViewActualEnd: Date,   // 整个可见时间轴的结束点 (例如 addDays(dateHeaders[last], 1))
-  effectiveStatus: UsageLog['status']
+  effectiveStatus: UsageLog['status'],
+  dayWidthPx: number
 ) => {
   const logStartTime = parseISO(log.startTime);
   let logEndTimeDate;
@@ -157,9 +195,8 @@ export const calculateBarPositionAndWidth = (
   const displayDurationMinutes = differenceInMinutes(displayEndTime, displayStartTime);
 
   const minutesInDay = 24 * 60; // DAY_WIDTH_PX 代表的是24小时
-
-  const finalLeft = (leftOffsetMinutes / minutesInDay) * DAY_WIDTH_PX;
-  const finalWidth = (displayDurationMinutes / minutesInDay) * DAY_WIDTH_PX;
+  const finalLeft = (leftOffsetMinutes / minutesInDay) * dayWidthPx;
+  const finalWidth = (displayDurationMinutes / minutesInDay) * dayWidthPx;
   
   return { left: finalLeft, width: Math.max(finalWidth, 2), display: true };
 };
@@ -338,8 +375,13 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   onViewUsageLog,
   onDeleteUsageLog,
   regionCode = 'cn',
+  dayWidthPx: propsDayWidthPx,
+  scrollToTodaySignal,
 }) => {
   const dispatch = useAppDispatch()
+  const theme = useTheme();
+  const timelineCssVars = useMemo(() => buildTimelineCssVars(theme), [theme]);
+  const dayWidthPx = propsDayWidthPx ?? DAY_WIDTH_PX;
   const { chambers, loading: chambersLoading, error: chambersError } = useAppSelector((state) => state.chambers)
   const { projects, loading: projectsLoading, error: projectsError } = useAppSelector((state) => state.projects)
   const { testProjects, loading: testProjectsLoading, error: testProjectsError } = useAppSelector((state) => state.testProjects)
@@ -355,7 +397,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   const loadedHolidayYearsRef = useRef<Set<number>>(new Set());
 
   const dateHeaders = useMemo(() => generateDateHeadersFromRange(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
-  const totalTimelineWidth = useMemo(() => dateHeaders.length * DAY_WIDTH_PX, [dateHeaders.length]);
+  const totalTimelineWidth = useMemo(() => dateHeaders.length * dayWidthPx, [dateHeaders.length, dayWidthPx]);
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const initialScrollPerformedForCurrentViewRef = useRef(false);
@@ -381,23 +423,23 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     const gridScrollLeft = Math.max(0, container.scrollLeft - CHAMBER_NAME_WIDTH_PX);
 
     const overscanDays = 20;
-    const startIndex = Math.max(0, Math.floor(gridScrollLeft / DAY_WIDTH_PX) - overscanDays);
+    const startIndex = Math.max(0, Math.floor(gridScrollLeft / dayWidthPx) - overscanDays);
     const endIndexExclusive = Math.min(
       totalDays,
-      Math.ceil((gridScrollLeft + visibleGridWidth) / DAY_WIDTH_PX) + overscanDays
+      Math.ceil((gridScrollLeft + visibleGridWidth) / dayWidthPx) + overscanDays
     );
 
     setVisibleDayIndexRange((prev) => {
       if (prev.startIndex === startIndex && prev.endIndexExclusive === endIndexExclusive) return prev;
       return { startIndex, endIndexExclusive };
     });
-  }, [dateHeaders.length]);
+  }, [dateHeaders.length, dayWidthPx]);
 
   const handleTimelineScroll = useCallback(() => {
     const container = timelineContainerRef.current;
     if (!container) return;
 
-    const thresholdPx = DAY_WIDTH_PX * 10;
+    const thresholdPx = dayWidthPx * 10;
     if (container.scrollLeft < thresholdPx && !isExtendingLeftRef.current) {
       isExtendingLeftRef.current = true;
       const beforeExtendScrollLeft = container.scrollLeft;
@@ -405,7 +447,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
         setRangeStart((prevStart) => {
           const nextStart = addMonths(prevStart, -1);
           const addedDays = differenceInCalendarDays(prevStart, nextStart);
-          desiredScrollLeftAfterPrependRef.current = beforeExtendScrollLeft + addedDays * DAY_WIDTH_PX;
+          desiredScrollLeftAfterPrependRef.current = beforeExtendScrollLeft + addedDays * dayWidthPx;
           return nextStart;
         });
       });
@@ -427,7 +469,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
         updateVisibleDayIndexRange();
       });
     }
-  }, [startTransition, updateVisibleDayIndexRange]);
+  }, [dayWidthPx, startTransition, updateVisibleDayIndexRange]);
 
   useLayoutEffect(() => {
     const container = timelineContainerRef.current;
@@ -439,6 +481,23 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     isExtendingRightRef.current = false;
     updateVisibleDayIndexRange();
   }, [dateHeaders.length, updateVisibleDayIndexRange]);
+
+  useEffect(() => {
+    if (!scrollToTodaySignal) return;
+    const container = timelineContainerRef.current;
+    if (!container || dateHeaders.length === 0) return;
+
+    const todayBase = getTimelineBaseDate(new Date());
+    const todayIndex = dateHeaders.findIndex((d) => isEqual(dateFnsStartOfDay(d), dateFnsStartOfDay(todayBase)));
+    if (todayIndex < 0) return;
+
+    const visibleGridWidth = Math.max(0, container.clientWidth - CHAMBER_NAME_WIDTH_PX);
+    const targetGridLeft = todayIndex * dayWidthPx - Math.max(0, (visibleGridWidth - dayWidthPx) / 2);
+    const targetScrollLeft = Math.max(0, targetGridLeft + CHAMBER_NAME_WIDTH_PX);
+
+    (container as any).scrollTo?.({ left: targetScrollLeft, behavior: 'smooth' });
+    if (!(container as any).scrollTo) container.scrollLeft = targetScrollLeft;
+  }, [dateHeaders, dayWidthPx, scrollToTodaySignal]);
 
   const fetchAndProcessHolidaysForYearInternal = useCallback(async (year: number, region: string): Promise<Map<string, HolidayDetail>> => { /* ... (保持不变) ... */
     const yearHolidaysMap = new Map<string, HolidayDetail>();
@@ -665,9 +724,9 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
     if (todayIndex !== -1) {
       const containerWidth = container.offsetWidth;
       const visibleGridWidth = Math.max(0, containerWidth - CHAMBER_NAME_WIDTH_PX);
-      const cellsThatFit = Math.floor(visibleGridWidth / DAY_WIDTH_PX);
+      const cellsThatFit = Math.floor(visibleGridWidth / dayWidthPx);
       const desiredTodayCellOffset = cellsThatFit > 2 ? 1 : (cellsThatFit > 1 ? 0 : 0); 
-      targetScrollPosition = CHAMBER_NAME_WIDTH_PX + (todayIndex - desiredTodayCellOffset) * DAY_WIDTH_PX;
+      targetScrollPosition = CHAMBER_NAME_WIDTH_PX + (todayIndex - desiredTodayCellOffset) * dayWidthPx;
       targetScrollPosition = Math.max(0, targetScrollPosition);
       const maxScroll = (CHAMBER_NAME_WIDTH_PX + totalTimelineWidth) - containerWidth;
       targetScrollPosition = Math.min(targetScrollPosition, maxScroll > 0 ? maxScroll : 0);
@@ -687,6 +746,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   }, [
     dateHeaders, 
     totalTimelineWidth, 
+    dayWidthPx,
     chambersLoading, projectsLoading, testProjectsLoading, usageLogsDataLoading, holidaysLoading,
   ]);
   // *** SCROLL LOGIC END ***
@@ -726,7 +786,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   }
 
   return (
-    <div className={styles.timelinePageContainer}>
+    <div className={styles.timelinePageContainer} style={timelineCssVars}>
       <div
         ref={timelineContainerRef}
         className={styles.timelineScrollContainer}
@@ -760,7 +820,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                 <div
                   key={index}
                   className={headerClassName}
-                  style={{ left: `${index * DAY_WIDTH_PX}px`, minWidth: `${DAY_WIDTH_PX}px`, width: `${DAY_WIDTH_PX}px`, position: 'absolute', top: 0 }}
+                  style={{ left: `${index * dayWidthPx}px`, minWidth: `${dayWidthPx}px`, width: `${dayWidthPx}px`, position: 'absolute', top: 0 }}
                   title={classification.name || ''}
                 >
                   <div className={styles.dateDisplay}>{formatDateHeader(dateHeaderItem)}</div>
@@ -807,8 +867,8 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                   key={`day-bg-${dayIndex}`}
                   className={dayBgClass}
                   style={{
-                    left: `${dayIndex * DAY_WIDTH_PX}px`,
-                    width: `${DAY_WIDTH_PX}px`,
+                    left: `${dayIndex * dayWidthPx}px`,
+                    width: `${dayWidthPx}px`,
                     height: `${totalTimelineGridHeight}px`,
                   }}
                   title={classification.name || ''}
@@ -831,11 +891,15 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
               const layoutInfo = chamberLayouts.get(chamber.id);
               const logsToRender = layoutInfo ? layoutInfo.logsWithTracks : [];
               const rowTopOffset = chamberRowTopById.get(chamber.id) || 0;
-              const visibleLeftPx = visibleDayIndexRange.startIndex * DAY_WIDTH_PX;
-              const visibleRightPx = visibleDayIndexRange.endIndexExclusive * DAY_WIDTH_PX;
+              const visibleLeftPx = visibleDayIndexRange.startIndex * dayWidthPx;
+              const visibleRightPx = visibleDayIndexRange.endIndexExclusive * dayWidthPx;
+              const rowHeight = getChamberRowHeight(chamber.id);
+              const totalTracks = layoutInfo ? layoutInfo.maxTracks : 0;
+              const tracksHeight = totalTracks > 0 ? totalTracks * ITEM_BAR_TOTAL_HEIGHT : 0;
+              const baseTrackOffset = Math.max(ITEM_BAR_VERTICAL_MARGIN, Math.floor((rowHeight - tracksHeight) / 2));
 
               return (
-                <div key={chamber.id} className={styles.timelineRow} style={{ position: 'absolute', top: `${rowTopOffset}px`, height: `${getChamberRowHeight(chamber.id)}px`, width: `${totalTimelineWidth}px` }}>
+                <div key={chamber.id} className={styles.timelineRow} style={{ position: 'absolute', top: `${rowTopOffset}px`, height: `${rowHeight}px`, width: `${totalTimelineWidth}px` }}>
                   {logsToRender.map((logDisplayItem) => {
                     const originalLog = usageLogById.get(logDisplayItem.originalLogId);
                     if (!originalLog) return null;
@@ -844,13 +908,14 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                       originalLog,
                       timelineViewActualStart,
                       timelineViewActualEnd,
-                      logDisplayItem.effectiveStatus
+                      logDisplayItem.effectiveStatus,
+                      dayWidthPx
                     );
 
                     if (!display || width <= 0) return null;
                     if (left + width < visibleLeftPx || left > visibleRightPx) return null;
 
-                    const styling = getBarStylingByEffectiveStatus(logDisplayItem.effectiveStatus);
+                    const styling = getBarStylingByEffectiveStatus(theme, logDisplayItem.effectiveStatus);
                     const barTextParts: string[] = [];
                     if (logDisplayItem.projectName) barTextParts.push(logDisplayItem.projectName);
                     if (logDisplayItem.configName && logDisplayItem.configName !== '无特定配置' && logDisplayItem.configName !== '未知配置') {
@@ -863,7 +928,14 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                       barTextParts.push(logDisplayItem.testProjectName);
                     }
                     const barText = barTextParts.length > 0 ? barTextParts.join(' - ') : (originalLog.user || '使用记录');
-                    const barTopPosition = logDisplayItem.trackIndex * ITEM_BAR_TOTAL_HEIGHT + ITEM_BAR_VERTICAL_MARGIN;
+                    const barSegments: Array<{ text: string; tone: 'primary' | 'secondary' }> = [];
+                    if (logDisplayItem.projectName) barSegments.push({ text: logDisplayItem.projectName, tone: 'primary' });
+                    if (logDisplayItem.configName && logDisplayItem.configName !== '无特定配置' && logDisplayItem.configName !== '未知配置') {
+                      barSegments.push({ text: logDisplayItem.configName, tone: 'primary' });
+                    }
+                    if (originalLog.selectedWaterfall) barSegments.push({ text: `WF:${originalLog.selectedWaterfall}`, tone: 'secondary' });
+                    if (logDisplayItem.testProjectName) barSegments.push({ text: logDisplayItem.testProjectName, tone: 'secondary' });
+                    const barTopPosition = baseTrackOffset + logDisplayItem.trackIndex * ITEM_BAR_TOTAL_HEIGHT;
 
                     return (
                       <Tooltip
@@ -899,7 +971,18 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
                             onViewUsageLog(logDisplayItem.originalLogId);
                           }}
                         >
-                          <span className={styles.timelineBarText}>{barText}</span>
+                          <span className={styles.timelineBarText}>
+                            {barSegments.length > 0
+                              ? barSegments.map((seg, idx) => (
+                                  <React.Fragment key={`${logDisplayItem.displayId}-seg-${idx}`}>
+                                    {idx > 0 ? <span className={styles.timelineBarTextSeparator}> · </span> : null}
+                                    <span className={seg.tone === 'primary' ? styles.timelineBarTextPrimary : styles.timelineBarTextSecondary}>
+                                      {seg.text}
+                                    </span>
+                                  </React.Fragment>
+                                ))
+                              : (originalLog.user || '使用记录')}
+                          </span>
                           {onDeleteUsageLog && (
                             <button
                               className={styles.timelineBarDeleteButton}

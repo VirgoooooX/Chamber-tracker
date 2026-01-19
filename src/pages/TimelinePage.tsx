@@ -1,16 +1,19 @@
 // src/pages/TimelinePage.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Container, Box, Typography, CircularProgress, Button, Alert } from '@mui/material'; // Alert 导入
+import { Container, Box, Typography, CircularProgress, Button, Alert, Chip, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ScrollingTimeline from '../components/ScrollingTimeline';
 import UsageLogDetails from '../components/UsageLogDetails';
 import UsageLogForm from '../components/UsageLogForm';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { UsageLog } from '../types';
 import { fetchUsageLogs, removeConfigFromUsageLog } from '../store/usageLogsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'
+import { alpha, useTheme } from '@mui/material/styles';
 
 const TimelinePage: React.FC = () => {
+    const theme = useTheme();
     const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const dispatch = useAppDispatch()
@@ -20,12 +23,39 @@ const TimelinePage: React.FC = () => {
 
     const [isUsageLogFormOpen, setIsUsageLogFormOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<UsageLog | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{ logId: string; configId: string } | null>(null);
+    const [dayWidthPx, setDayWidthPx] = useState<number>(200);
+    const [scrollToTodaySignal, setScrollToTodaySignal] = useState(0);
 
     const overdueCount = useMemo(() => {
         return usageLogs.reduce((count, log) => {
             return getEffectiveUsageLogStatus(log) === 'overdue' ? count + 1 : count
         }, 0)
     }, [usageLogs])
+
+    const legendChipSx = useCallback((status: UsageLog['status']) => {
+        const main =
+            status === 'completed' ? theme.palette.success.main :
+            status === 'in-progress' ? theme.palette.warning.main :
+            status === 'not-started' ? theme.palette.info.main :
+            status === 'overdue' ? theme.palette.error.main :
+            theme.palette.text.secondary;
+
+        const dark =
+            status === 'completed' ? theme.palette.success.dark :
+            status === 'in-progress' ? theme.palette.warning.dark :
+            status === 'not-started' ? theme.palette.info.dark :
+            status === 'overdue' ? theme.palette.error.dark :
+            theme.palette.text.primary;
+
+        return {
+            backgroundColor: alpha(main, 0.16),
+            border: '1px solid',
+            borderColor: alpha(main, 0.32),
+            color: dark,
+            fontWeight: 650,
+        } as const;
+    }, [theme]);
 
     const handleViewUsageLog = useCallback((logId: string) => {
         setSelectedLogId(logId);
@@ -37,17 +67,22 @@ const TimelinePage: React.FC = () => {
         setSelectedLogId(null);
     }, []);
 
-    const handleDeleteLog = useCallback(async (logId: string, configId: string) => {
-        if (window.confirm('确定要删除此配置的使用记录吗？')) {
-            try {
-                await dispatch(removeConfigFromUsageLog({ logId, configId })).unwrap();
-                // Optionally, show a success notification
-            } catch (error) { 
-                // Optionally, show an error notification
-                console.error('Failed to remove config from log:', error);
-            }
+    const handleDeleteLog = useCallback((logId: string, configId: string) => {
+        setPendingDelete({ logId, configId });
+    }, []);
+
+    const handleCloseDelete = useCallback(() => setPendingDelete(null), []);
+
+    const handleConfirmDelete = useCallback(async () => {
+        if (!pendingDelete) return;
+        try {
+            await dispatch(removeConfigFromUsageLog({ logId: pendingDelete.logId, configId: pendingDelete.configId })).unwrap();
+        } catch (error) {
+            console.error('Failed to remove config from log:', error);
+        } finally {
+            setPendingDelete(null);
         }
-    }, [dispatch]);
+    }, [dispatch, pendingDelete]);
 
     useEffect(() => {
         // 只有在非加载状态且首次获取未完成时才 dispatch
@@ -98,37 +133,60 @@ const TimelinePage: React.FC = () => {
                         justifyContent: 'space-between', // 使标题和按钮分布在两端
                         alignItems: 'center', // 垂直居中对齐
                         p: 2, // 内边距
-                        pb: 1, // 底部内边距略小，使标题行更紧凑
-                        backgroundColor: '#fff', // 背景色
-                        borderBottom: '1px solid #eee', // 底部边框
+                        py: 1.5,
+                        backgroundColor: 'background.paper',
+                        borderBottom: '1px solid',
+                        borderBottomColor: 'divider',
                         flexShrink: 0, // 防止此 Box 在 flex 布局中被压缩
                     }}
                 >
                     <Typography
-                        variant="h5"
+                        variant="h4"
                         component="h1"
                         sx={{
-                            color: '#1976d2', // Material UI 主题蓝色
-                            // textShadow: '1px 1px 2px rgba(0, 0, 0, 0.1)', // 可选：较柔和的文本阴影
-                            fontWeight: 'medium', // 字体加粗程度
+                            lineHeight: 1.15,
                         }}
                     >
                         时间轴视图
                     </Typography>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        size="small" // 按钮尺寸
-                        startIcon={<AddIcon />}
-                        onClick={handleOpenNewUsageLogForm} // 点击事件处理器
-                        sx={{ whiteSpace: 'nowrap' }} // 防止按钮内文字换行
-                    >
-                        登记新使用记录
-                    </Button>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <Button variant="outlined" size="small" onClick={() => setScrollToTodaySignal((n) => n + 1)} sx={{ whiteSpace: 'nowrap' }}>
+                            跳转今天
+                        </Button>
+                        <ToggleButtonGroup
+                            value={dayWidthPx}
+                            exclusive
+                            size="small"
+                            onChange={(_, value) => {
+                                if (typeof value === 'number') setDayWidthPx(value);
+                            }}
+                            sx={{ flexShrink: 0 }}
+                        >
+                            <ToggleButton value={140} sx={{ px: 1.25 }}>紧凑</ToggleButton>
+                            <ToggleButton value={200} sx={{ px: 1.25 }}>默认</ToggleButton>
+                            <ToggleButton value={260} sx={{ px: 1.25 }}>宽松</ToggleButton>
+                        </ToggleButtonGroup>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                            <Chip label="未开始" size="small" sx={legendChipSx('not-started')} />
+                            <Chip label="进行中" size="small" sx={legendChipSx('in-progress')} />
+                            <Chip label="已完成" size="small" sx={legendChipSx('completed')} />
+                            <Chip label="已超时" size="small" sx={legendChipSx('overdue')} />
+                        </Box>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            startIcon={<AddIcon />}
+                            onClick={handleOpenNewUsageLogForm}
+                            sx={{ whiteSpace: 'nowrap' }}
+                        >
+                            登记新使用记录
+                        </Button>
+                    </Box>
                 </Box>
 
                 {overdueCount > 0 && (
-                    <Box sx={{ px: 2, pb: 1, backgroundColor: '#fff', borderBottom: '1px solid #eee', flexShrink: 0 }}>
+                    <Box sx={{ px: 2, pb: 1, backgroundColor: 'background.paper', borderBottom: '1px solid', borderBottomColor: 'divider', flexShrink: 0 }}>
                         <Alert severity="error" variant="filled">
                             当前有 {overdueCount} 条超时未完成使用记录，请及时处理
                         </Alert>
@@ -162,6 +220,8 @@ const TimelinePage: React.FC = () => {
                             usageLogs={usageLogs}
                             onViewUsageLog={handleViewUsageLog}
                             onDeleteUsageLog={handleDeleteLog}
+                            dayWidthPx={dayWidthPx}
+                            scrollToTodaySignal={scrollToTodaySignal}
                             // onAddNewUsageLog prop 已移除，因为按钮在此组件中直接处理
                         />
                     )}
@@ -184,6 +244,13 @@ const TimelinePage: React.FC = () => {
                         log={editingLog || undefined} // 传递正在编辑的记录或undefined (新建)
                     />
                 )}
+                <ConfirmDialog
+                    open={Boolean(pendingDelete)}
+                    title="确认删除"
+                    description="确定要删除此配置的使用记录吗？此操作无法撤销。"
+                    onClose={handleCloseDelete}
+                    onConfirm={handleConfirmDelete}
+                />
             </Box>
         </Container>
     );
