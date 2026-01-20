@@ -23,6 +23,7 @@ import ConfirmDialog from './ConfirmDialog';
 import AppCard from './AppCard';
 import TitleWithIcon from './TitleWithIcon'
 import AcUnitIcon from '@mui/icons-material/AcUnit'
+import { useI18n } from '../i18n'
 
 interface ChamberListProps {
   onView: (id: string) => void
@@ -34,6 +35,7 @@ const ChamberList: React.FC<ChamberListProps> = ({ onView, onEdit, onAddNew }) =
   const dispatch = useAppDispatch()
   const { assets: chambers, loading, error } = useAppSelector((state) => state.assets)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const { tr } = useI18n()
 
   useEffect(() => {
     dispatch(fetchAssetsByType('chamber'));
@@ -53,22 +55,22 @@ const ChamberList: React.FC<ChamberListProps> = ({ onView, onEdit, onAddNew }) =
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
         <CircularProgress />
-        <Typography sx={{ ml: 2 }}>正在加载设备列表...</Typography>
+        <Typography sx={{ ml: 2 }}>{tr('正在加载设备列表...', 'Loading assets...')}</Typography>
       </Box>
     );
   }
 
   if (error) {
-    return <Alert severity="error">加载设备列表失败: {error}</Alert>;
+    return <Alert severity="error">{tr(`加载设备列表失败: ${error}`, `Failed to load assets: ${error}`)}</Alert>;
   }
 
   return (
     <Box>
       <AppCard
-        title={<TitleWithIcon icon={<AcUnitIcon />}>设备列表</TitleWithIcon>}
+        title={<TitleWithIcon icon={<AcUnitIcon />}>{tr('设备列表', 'Asset list')}</TitleWithIcon>}
         actions={
           <Button variant="contained" color="primary" onClick={onAddNew} startIcon={<AddIcon />}>
-            新增设备
+            {tr('新增设备', 'Add asset')}
           </Button>
         }
         contentSx={{ mx: -2.5, mb: -2.5 }}
@@ -77,22 +79,22 @@ const ChamberList: React.FC<ChamberListProps> = ({ onView, onEdit, onAddNew }) =
           <Table size="small">
           <TableHead sx={{ backgroundColor: 'action.hover' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600 }}>资产号</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>名称</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>位置</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>厂商</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>型号</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>校验日期</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>创建时间</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="center">操作</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('资产号', 'Asset code')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('名称', 'Name')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('状态', 'Status')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('位置', 'Location')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('厂商', 'Manufacturer')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('型号', 'Model')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('校验日期', 'Calibration date')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('创建时间', 'Created')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">{tr('操作', 'Actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {chambers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} align="center">
-                  暂无数据
+                  {tr('暂无数据', 'No data')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -107,7 +109,13 @@ const ChamberList: React.FC<ChamberListProps> = ({ onView, onEdit, onAddNew }) =
                   <TableCell>{chamber.name}</TableCell>
                   <TableCell>
                     <Chip 
-                      label={chamber.status === 'available' ? '可用' : chamber.status === 'in-use' ? '使用中' : '维护中'} 
+                      label={
+                        chamber.status === 'available'
+                          ? tr('可用', 'Available')
+                          : chamber.status === 'in-use'
+                            ? tr('使用中', 'In use')
+                            : tr('维护中', 'Maintenance')
+                      } 
                       color={chamber.status === 'available' ? 'success' : chamber.status === 'in-use' ? 'warning' : 'error'} 
                       size="small"
                     />
@@ -150,8 +158,8 @@ const ChamberList: React.FC<ChamberListProps> = ({ onView, onEdit, onAddNew }) =
       </AppCard>
       <ConfirmDialog
         open={Boolean(pendingDeleteId)}
-        title="确认删除"
-        description="您确定要删除这个设备吗？此操作无法撤销。"
+        title={tr('确认删除', 'Confirm deletion')}
+        description={tr('您确定要删除这个设备吗？此操作无法撤销。', 'Delete this asset? This action cannot be undone.')}
         onClose={handleCloseDelete}
         onConfirm={handleConfirmDelete}
       />

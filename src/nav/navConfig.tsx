@@ -33,19 +33,21 @@ export interface NavSection {
   order: number
 }
 
-export const navSections: NavSection[] = [
-  { id: 'overview', label: '总览', icon: <DashboardIcon />, order: 10 },
-  { id: 'ops', label: '运营', icon: <NotificationsActiveIcon />, order: 20 },
-  { id: 'resources', label: '资源', icon: <AcUnitIcon />, order: 30 },
-  { id: 'system', label: '系统', icon: <SettingsIcon />, order: 40 },
+export type Tr = (zh: string, en: string) => string
+
+export const buildNavSections = (tr: Tr): NavSection[] => [
+  { id: 'overview', label: tr('总览', 'Overview'), icon: <DashboardIcon />, order: 10 },
+  { id: 'ops', label: tr('运营', 'Operations'), icon: <NotificationsActiveIcon />, order: 20 },
+  { id: 'resources', label: tr('资源', 'Resources'), icon: <AcUnitIcon />, order: 30 },
+  { id: 'system', label: tr('系统', 'System'), icon: <SettingsIcon />, order: 40 },
 ]
 
-export const navItems: NavItem[] = [
+export const buildNavItems = (tr: Tr): NavItem[] => [
   {
     id: 'dashboard',
     section: 'overview',
-    label: '总览',
-    description: '关键指标、使用率与校准提醒',
+    label: tr('总览', 'Overview'),
+    description: tr('关键指标、使用率与校准提醒', 'KPIs, utilization, and calibration reminders'),
     path: '/dashboard',
     roles: ['admin', 'user'],
     icon: <DashboardIcon />,
@@ -55,8 +57,8 @@ export const navItems: NavItem[] = [
   {
     id: 'timeline',
     section: 'overview',
-    label: '使用时间线',
-    description: '按时间轴查看设备占用情况',
+    label: tr('使用时间线', 'Usage timeline'),
+    description: tr('按时间轴查看设备占用情况', 'View occupancy by timeline'),
     path: '/timeline',
     roles: ['admin', 'user'],
     icon: <TimelineIcon />,
@@ -65,8 +67,8 @@ export const navItems: NavItem[] = [
   {
     id: 'alerts',
     section: 'ops',
-    label: '告警中心',
-    description: '校准到期、逾期、长占用',
+    label: tr('告警中心', 'Alerts'),
+    description: tr('校准到期、逾期、长占用', 'Calibration due/overdue and long occupancy'),
     path: '/alerts',
     roles: ['admin', 'user'],
     icon: <NotificationsActiveIcon />,
@@ -76,8 +78,8 @@ export const navItems: NavItem[] = [
   {
     id: 'usageLogs',
     section: 'ops',
-    label: '使用记录',
-    description: '登记、查询与导出使用记录',
+    label: tr('使用记录', 'Usage logs'),
+    description: tr('登记、查询与导出使用记录', 'Create, search, and export usage logs'),
     path: '/usage-logs',
     roles: ['admin', 'user'],
     icon: <ListAltIcon />,
@@ -87,8 +89,8 @@ export const navItems: NavItem[] = [
   {
     id: 'repairs',
     section: 'ops',
-    label: '维修管理',
-    description: '维修工单与状态追踪',
+    label: tr('维修管理', 'Repairs'),
+    description: tr('维修工单与状态追踪', 'Repair tickets and status tracking'),
     path: '/repairs',
     roles: ['admin'],
     icon: <BuildCircleIcon />,
@@ -98,8 +100,8 @@ export const navItems: NavItem[] = [
   {
     id: 'assets',
     section: 'resources',
-    label: '设备台账',
-    description: '设备信息、状态与校准日期',
+    label: tr('设备台账', 'Assets'),
+    description: tr('设备信息、状态与校准日期', 'Asset info, status, and calibration date'),
     path: '/chambers',
     roles: ['admin'],
     icon: <AcUnitIcon />,
@@ -109,8 +111,8 @@ export const navItems: NavItem[] = [
   {
     id: 'projects',
     section: 'resources',
-    label: '项目',
-    description: '客户项目与配置管理',
+    label: tr('项目', 'Projects'),
+    description: tr('客户项目与配置管理', 'Customer projects and configuration'),
     path: '/projects',
     roles: ['admin'],
     icon: <BusinessCenterIcon />,
@@ -119,8 +121,8 @@ export const navItems: NavItem[] = [
   {
     id: 'testProjects',
     section: 'resources',
-    label: '测试项目',
-    description: '测试项目/计划管理',
+    label: tr('测试项目', 'Test projects'),
+    description: tr('测试项目/计划管理', 'Test project / plan management'),
     path: '/test-projects',
     roles: ['admin'],
     icon: <ScienceIcon />,
@@ -129,8 +131,8 @@ export const navItems: NavItem[] = [
   {
     id: 'settings',
     section: 'system',
-    label: '设置',
-    description: '外观、阈值、自动刷新与数据迁移',
+    label: tr('设置', 'Settings'),
+    description: tr('外观、阈值、自动刷新与数据迁移', 'Appearance, thresholds, auto refresh, and migration'),
     path: '/settings',
     roles: ['admin', 'user'],
     icon: <SettingsIcon />,

@@ -20,9 +20,11 @@ import { TestProject } from '../types';
 // 导入 deleteTestProject。fetchTestProjects 通常在 TestProjectList 中处理，
 // 但如果需要在表单关闭后强制刷新，这里也可以导入。
 import { deleteTestProject, fetchTestProjects } from '../store/testProjectsSlice'; 
+import { useI18n } from '../i18n'
 
 const TestProjectsPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const { tr } = useI18n()
 
   // --- State Management ---
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -62,13 +64,13 @@ const TestProjectsPage: React.FC = () => {
     if (deletingTestProjectId) {
       try {
         await dispatch(deleteTestProject(deletingTestProjectId)).unwrap();
-        setSnackbarMessage('测试项目删除成功');
+        setSnackbarMessage(tr('测试项目删除成功', 'Test project deleted.'));
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
         // 删除成功后，列表应该会自动更新 (因为 Redux state 变化)
         // 如果 TestProjectList 组件依赖于父组件触发刷新，可以在此 dispatch(fetchTestProjects());
       } catch (error: any) {
-        setSnackbarMessage(`删除失败: ${error.message || '未知错误'}`);
+        setSnackbarMessage(tr(`删除失败: ${error.message || '未知错误'}`, `Delete failed: ${error.message || 'Unknown error'}`));
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
       } finally {
@@ -92,10 +94,10 @@ const TestProjectsPage: React.FC = () => {
 
   return (
     <PageShell
-      title={<TitleWithIcon icon={<ScienceIcon />}>测试项目</TitleWithIcon>}
+      title={<TitleWithIcon icon={<ScienceIcon />}>{tr('测试项目', 'Test projects')}</TitleWithIcon>}
       actions={
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenForm()}>
-          添加测试项目
+          {tr('添加测试项目', 'Add test project')}
         </Button>
       }
     >
@@ -116,8 +118,8 @@ const TestProjectsPage: React.FC = () => {
 
         <ConfirmDialog
           open={isConfirmDeleteDialogOpen}
-          title="确认删除"
-          description="您确定要删除这个测试项目吗？此操作无法撤销。"
+          title={tr('确认删除', 'Confirm deletion')}
+          description={tr('您确定要删除这个测试项目吗？此操作无法撤销。', 'Delete this test project? This action cannot be undone.')}
           onClose={handleCloseConfirmDelete}
           onConfirm={handleConfirmDelete}
         />

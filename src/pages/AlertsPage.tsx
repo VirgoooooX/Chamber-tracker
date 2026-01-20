@@ -23,12 +23,7 @@ import { fetchAssetsByType } from '../store/assetsSlice'
 import { fetchUsageLogs } from '../store/usageLogsSlice'
 import { AlertSeverity, AlertType, selectDerivedAlerts } from '../store/alertsSelectors'
 import { Alert } from '@mui/material'
-
-const typeLabel: Record<AlertType, string> = {
-  'calibration-due': '校准到期',
-  'usage-overdue': '逾期',
-  'usage-long': '长占用',
-}
+import { useI18n } from '../i18n'
 
 const severityColor: Record<AlertSeverity, 'error' | 'warning'> = {
   P1: 'error',
@@ -39,6 +34,7 @@ const AlertsPage: React.FC = () => {
   const dispatch = useAppDispatch()
   const settings = useAppSelector((s) => s.settings)
   const fallbackSource = useAppSelector((s) => s.assets.fallbackSource)
+  const { tr } = useI18n()
 
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | 'all'>('all')
   const [typeFilter, setTypeFilter] = useState<AlertType | 'all'>('all')
@@ -59,6 +55,14 @@ const AlertsPage: React.FC = () => {
 
   const nowMs = useMemo(() => Date.now(), [settings.alerts.calibrationDaysThreshold, settings.alerts.longOccupancyHoursThreshold])
   const alerts = useAppSelector((state) => selectDerivedAlerts(state, nowMs))
+  const typeLabel = useMemo<Record<AlertType, string>>(
+    () => ({
+      'calibration-due': tr('校准到期', 'Calibration due'),
+      'usage-overdue': tr('逾期', 'Overdue'),
+      'usage-long': tr('长占用', 'Long occupancy'),
+    }),
+    [tr]
+  )
 
   const filtered = useMemo(() => {
     return alerts.filter((a) => {
@@ -76,18 +80,18 @@ const AlertsPage: React.FC = () => {
   return (
     <PageShell
       title={
-        <TitleWithIcon icon={<NotificationsActiveIcon />}>告警中心</TitleWithIcon>
+        <TitleWithIcon icon={<NotificationsActiveIcon />}>{tr('告警中心', 'Alerts')}</TitleWithIcon>
       }
       maxWidth="xl"
       actions={
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
           <Chip
-            label={severityFilter === 'all' ? '严重级别: 全部' : `严重级别: ${severityFilter}`}
+            label={severityFilter === 'all' ? tr('严重级别: 全部', 'Severity: All') : tr(`严重级别: ${severityFilter}`, `Severity: ${severityFilter}`)}
             onClick={() => setSeverityFilter((v) => (v === 'all' ? 'P1' : v === 'P1' ? 'P2' : 'all'))}
             sx={{ fontWeight: 650 }}
           />
           <Chip
-            label={typeFilter === 'all' ? '类型: 全部' : `类型: ${typeLabel[typeFilter]}`}
+            label={typeFilter === 'all' ? tr('类型: 全部', 'Type: All') : tr(`类型: ${typeLabel[typeFilter]}`, `Type: ${typeLabel[typeFilter]}`)}
             onClick={() =>
               setTypeFilter((v) =>
                 v === 'all' ? 'usage-overdue' : v === 'usage-overdue' ? 'usage-long' : v === 'usage-long' ? 'calibration-due' : 'all'
@@ -95,7 +99,7 @@ const AlertsPage: React.FC = () => {
             }
             sx={{ fontWeight: 650 }}
           />
-          <Tooltip title="刷新">
+          <Tooltip title={tr('刷新', 'Refresh')}>
             <IconButton onClick={handleRefresh} size="small" color="primary">
               <RefreshIcon fontSize="small" />
             </IconButton>
@@ -105,16 +109,19 @@ const AlertsPage: React.FC = () => {
     >
       {fallbackSource === 'chambers' ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          当前正在从旧的 chambers 集合读取数据（assets 尚未迁移）。建议到“设置 → 数据迁移”执行一键迁移。
+          {tr(
+            '当前正在从旧的 chambers 集合读取数据（assets 尚未迁移）。建议到“设置 → 数据迁移”执行一键迁移。',
+            'Data is being read from the legacy chambers collection (assets not migrated yet). Go to Settings → Data migration to run a one-click migration.'
+          )}
         </Alert>
       ) : null}
       <AppCard
         title={
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography component="span" sx={{ fontWeight: 750 }}>
-              当前告警
+              {tr('当前告警', 'Current alerts')}
             </Typography>
-            <Chip size="small" label={`${filtered.length} 条`} sx={{ fontWeight: 650 }} />
+            <Chip size="small" label={settings.language === 'en' ? `${filtered.length}` : `${filtered.length} 条`} sx={{ fontWeight: 650 }} />
           </Stack>
         }
       >
@@ -122,19 +129,19 @@ const AlertsPage: React.FC = () => {
           <Table size="small">
             <TableHead sx={{ backgroundColor: 'action.hover' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 650, width: 90 }}>级别</TableCell>
-                <TableCell sx={{ fontWeight: 650, width: 120 }}>类型</TableCell>
-                <TableCell sx={{ fontWeight: 650 }}>设备</TableCell>
-                <TableCell sx={{ fontWeight: 650 }}>标题</TableCell>
-                <TableCell sx={{ fontWeight: 650 }}>详情</TableCell>
-                <TableCell sx={{ fontWeight: 650, width: 140 }}>关联记录</TableCell>
+                <TableCell sx={{ fontWeight: 650, width: 90 }}>{tr('级别', 'Severity')}</TableCell>
+                <TableCell sx={{ fontWeight: 650, width: 120 }}>{tr('类型', 'Type')}</TableCell>
+                <TableCell sx={{ fontWeight: 650 }}>{tr('设备', 'Asset')}</TableCell>
+                <TableCell sx={{ fontWeight: 650 }}>{tr('标题', 'Title')}</TableCell>
+                <TableCell sx={{ fontWeight: 650 }}>{tr('详情', 'Detail')}</TableCell>
+                <TableCell sx={{ fontWeight: 650, width: 140 }}>{tr('关联记录', 'Related log')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center">
-                    <Typography color="text.secondary">暂无告警</Typography>
+                    <Typography color="text.secondary">{tr('暂无告警', 'No alerts')}</Typography>
                   </TableCell>
                 </TableRow>
               ) : (

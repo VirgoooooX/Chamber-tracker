@@ -1,14 +1,15 @@
 import * as XLSX from 'xlsx'
 import { format, isValid, parseISO } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { enUS, zhCN } from 'date-fns/locale'
 import type { Asset, Project, TestProject, UsageLog } from '../types'
 import { getEffectiveUsageLogStatus } from './statusHelpers'
+import type { Language } from '../store/settingsSlice'
 
-const formatDateTime = (value: string | undefined) => {
+const formatDateTime = (value: string | undefined, language: Language) => {
   if (!value) return ''
   const date = parseISO(value)
   if (!isValid(date)) return value
-  return format(date, 'yyyy-MM-dd HH:mm', { locale: zhCN })
+  return format(date, 'yyyy-MM-dd HH:mm', { locale: language === 'en' ? enUS : zhCN })
 }
 
 const buildConfigNameMapByProjectId = (projects: Project[]) => {
@@ -27,8 +28,9 @@ export const exportUsageLogsToXlsx = (params: {
   projects: Project[]
   testProjects: TestProject[]
   fileNamePrefix?: string
+  language?: Language
 }) => {
-  const { usageLogs, chambers, projects, testProjects, fileNamePrefix = 'usage-logs' } = params
+  const { usageLogs, chambers, projects, testProjects, fileNamePrefix = 'usage-logs', language = 'zh' } = params
 
   const chamberNameById = new Map(chambers.map((c) => [c.id, c.name] as const))
   const projectById = new Map(projects.map((p) => [p.id, p] as const))
@@ -46,8 +48,26 @@ export const exportUsageLogsToXlsx = (params: {
       log.projectId && log.selectedConfigIds && log.selectedConfigIds.length > 0
         ? log.selectedConfigIds
             .map((id) => configNameByProjectId.get(log.projectId!)?.get(id) || id)
-            .join('，')
+            .join(language === 'en' ? ', ' : '，')
         : ''
+
+    if (language === 'en') {
+      return {
+        'Log ID': log.id,
+        Asset: chamberName,
+        Project: projectName,
+        'Test Project': testProjectName,
+        Configs: configNames,
+        WF: log.selectedWaterfall || '',
+        User: log.user,
+        'Start Time': formatDateTime(log.startTime, language),
+        'End Time': formatDateTime(log.endTime, language),
+        'Stored Status': log.status,
+        'Effective Status': effectiveStatus,
+        Notes: log.notes || '',
+        'Created At': formatDateTime(log.createdAt, language),
+      }
+    }
 
     return {
       使用记录ID: log.id,
@@ -57,18 +77,18 @@ export const exportUsageLogsToXlsx = (params: {
       配置: configNames,
       WF: log.selectedWaterfall || '',
       用户: log.user,
-      开始时间: formatDateTime(log.startTime),
-      结束时间: formatDateTime(log.endTime),
+      开始时间: formatDateTime(log.startTime, language),
+      结束时间: formatDateTime(log.endTime, language),
       存储状态: log.status,
       有效状态: effectiveStatus,
       备注: log.notes || '',
-      创建时间: formatDateTime(log.createdAt),
+      创建时间: formatDateTime(log.createdAt, language),
     }
   })
 
   const worksheet = XLSX.utils.json_to_sheet(rows)
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, '使用记录')
+  XLSX.utils.book_append_sheet(workbook, worksheet, language === 'en' ? 'Usage Logs' : '使用记录')
 
   const arrayBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
   const blob = new Blob([arrayBuffer], {

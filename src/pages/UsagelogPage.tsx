@@ -20,6 +20,7 @@ import { exportUsageLogsToXlsx } from '../utils/exportUsageLogsToXlsx'
 import PageShell from '../components/PageShell'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TitleWithIcon from '../components/TitleWithIcon'
+import { useI18n } from '../i18n'
 
 const UsageLogPage: React.FC = () => {
   const dispatch = useAppDispatch()
@@ -27,6 +28,7 @@ const UsageLogPage: React.FC = () => {
   const { assets: chambers, loading: loadingChambers } = useAppSelector((state) => state.assets)
   const { projects, loading: loadingProjects } = useAppSelector((state) => state.projects)
   const { testProjects, loading: loadingTestProjects } = useAppSelector((state) => state.testProjects)
+  const { tr, language } = useI18n()
 
   // --- State Management ---
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -52,12 +54,14 @@ const UsageLogPage: React.FC = () => {
     setIsFormOpen(false);
     setEditingLog(null);
     if (success) {
-      setSnackbarMessage(editingLog ? '使用记录更新成功！' : '新的使用记录已登记！');
+      setSnackbarMessage(
+        editingLog ? tr('使用记录更新成功！', 'Usage log updated.') : tr('新的使用记录已登记！', 'Usage log created.')
+      );
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
       // 列表会自动因 Redux state 更新而刷新，通常不需要手动 dispatch fetchUsageLogs
     }
-  }, [editingLog /*, dispatch */]);
+  }, [editingLog, tr /*, dispatch */]);
 
   const handleViewDetails = useCallback((logId: string) => {
     setSelectedLogIdForDetails(logId);
@@ -83,11 +87,13 @@ const UsageLogPage: React.FC = () => {
     if (deletingLogId) {
       try {
         await dispatch(deleteUsageLog(deletingLogId)).unwrap();
-        setSnackbarMessage('使用记录删除成功');
+        setSnackbarMessage(tr('使用记录删除成功', 'Usage log deleted.'));
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
       } catch (error: any) {
-        setSnackbarMessage(`删除失败: ${error.message || '未知错误'}`);
+        setSnackbarMessage(
+          tr(`删除失败: ${error.message || '未知错误'}`, `Delete failed: ${error.message || 'Unknown error'}`)
+        );
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
       } finally {
@@ -106,40 +112,40 @@ const UsageLogPage: React.FC = () => {
   const handleExportAll = useCallback(() => {
     const anyLoading = loadingUsageLogs || loadingChambers || loadingProjects || loadingTestProjects
     if (anyLoading) {
-      setSnackbarMessage('数据加载中，稍后再试')
+      setSnackbarMessage(tr('数据加载中，稍后再试', 'Data is loading. Please try again later.'))
       setSnackbarSeverity('error')
       setSnackbarOpen(true)
       return
     }
     if (usageLogs.length === 0) {
-      setSnackbarMessage('暂无使用记录可导出')
+      setSnackbarMessage(tr('暂无使用记录可导出', 'No usage logs to export.'))
       setSnackbarSeverity('error')
       setSnackbarOpen(true)
       return
     }
     try {
-      exportUsageLogsToXlsx({ usageLogs, chambers, projects, testProjects })
-      setSnackbarMessage('已开始导出 Excel')
+      exportUsageLogsToXlsx({ usageLogs, chambers, projects, testProjects, language })
+      setSnackbarMessage(tr('已开始导出 Excel', 'Export started.'))
       setSnackbarSeverity('success')
       setSnackbarOpen(true)
     } catch (error: any) {
-      setSnackbarMessage(`导出失败: ${error?.message || '未知错误'}`)
+      setSnackbarMessage(tr(`导出失败: ${error?.message || '未知错误'}`, `Export failed: ${error?.message || 'Unknown error'}`))
       setSnackbarSeverity('error')
       setSnackbarOpen(true)
     }
-  }, [chambers, loadingChambers, loadingProjects, loadingTestProjects, loadingUsageLogs, projects, testProjects, usageLogs])
+  }, [chambers, language, loadingChambers, loadingProjects, loadingTestProjects, loadingUsageLogs, projects, testProjects, tr, usageLogs])
 
   return (
     <PageShell
-      title={<TitleWithIcon icon={<ListAltIcon />}>使用记录</TitleWithIcon>}
+      title={<TitleWithIcon icon={<ListAltIcon />}>{tr('使用记录', 'Usage logs')}</TitleWithIcon>}
       maxWidth="xl"
       actions={
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportAll} sx={{ whiteSpace: 'nowrap' }}>
-            导出Excel
+            {tr('导出Excel', 'Export Excel')}
           </Button>
           <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpenForm()} sx={{ whiteSpace: 'nowrap' }}>
-            登记新使用记录
+            {tr('登记新使用记录', 'New usage log')}
           </Button>
         </Box>
       }
@@ -171,8 +177,8 @@ const UsageLogPage: React.FC = () => {
 
         <ConfirmDialog
           open={isConfirmDeleteDialogOpen}
-          title="确认删除"
-          description="您确定要删除这条使用记录吗？此操作无法撤销。"
+          title={tr('确认删除', 'Confirm deletion')}
+          description={tr('您确定要删除这条使用记录吗？此操作无法撤销。', 'Delete this usage log? This action cannot be undone.')}
           onClose={handleCloseConfirmDelete}
           onConfirm={handleConfirmDelete}
         />

@@ -27,6 +27,7 @@ import {
   DashboardRangePreset,
   DensityMode,
   ThemeMode,
+  setLanguage,
   setCalibrationDaysThreshold,
   setDashboardRangePreset,
   setDensity,
@@ -37,14 +38,15 @@ import {
 } from '../store/settingsSlice'
 import { migrateChambersToAssets, previewChambersToAssetsMigration } from '../services/migrationService'
 import { fetchAssetsByType } from '../store/assetsSlice'
+import { useI18n } from '../i18n'
 
 const PRIMARY_PRESETS = [
-  { name: '品牌蓝', value: '#155EEF' },
-  { name: '深蓝', value: '#003da5' },
-  { name: '天蓝', value: '#0ea5e9' },
-  { name: '青绿', value: '#14b8a6' },
-  { name: '橙色', value: '#f97316' },
-  { name: '紫色', value: '#7c3aed' },
+  { zhName: '品牌蓝', enName: 'Brand Blue', value: '#155EEF' },
+  { zhName: '深蓝', enName: 'Navy', value: '#003da5' },
+  { zhName: '天蓝', enName: 'Sky Blue', value: '#0ea5e9' },
+  { zhName: '青绿', enName: 'Teal', value: '#14b8a6' },
+  { zhName: '橙色', enName: 'Orange', value: '#f97316' },
+  { zhName: '紫色', enName: 'Purple', value: '#7c3aed' },
 ]
 
 const SettingsPage: React.FC = () => {
@@ -52,6 +54,7 @@ const SettingsPage: React.FC = () => {
   const settings = useAppSelector((s) => s.settings)
   const auth = useAppSelector((s) => s.auth)
   const isAdmin = auth.isAuthenticated && auth.user?.role === 'admin'
+  const { tr } = useI18n()
 
   const [migrationLoading, setMigrationLoading] = useState(false)
   const [migrationError, setMigrationError] = useState<string | null>(null)
@@ -75,7 +78,7 @@ const SettingsPage: React.FC = () => {
       const p = await previewChambersToAssetsMigration()
       setPreview(p)
     } catch (e: any) {
-      setMigrationError(e?.message || '预览失败')
+      setMigrationError(e?.message || tr('预览失败', 'Preview failed'))
     } finally {
       setMigrationLoading(false)
     }
@@ -89,7 +92,7 @@ const SettingsPage: React.FC = () => {
       await dispatch(fetchAssetsByType('chamber'))
       await handlePreview()
     } catch (e: any) {
-      setMigrationError(e?.message || '迁移失败')
+      setMigrationError(e?.message || tr('迁移失败', 'Migration failed'))
     } finally {
       setMigrationLoading(false)
     }
@@ -98,7 +101,7 @@ const SettingsPage: React.FC = () => {
   return (
     <PageShell
       title={
-        <TitleWithIcon icon={<SettingsIcon />}>设置</TitleWithIcon>
+        <TitleWithIcon icon={<SettingsIcon />}>{tr('设置', 'Settings')}</TitleWithIcon>
       }
       maxWidth="lg"
     >
@@ -107,7 +110,7 @@ const SettingsPage: React.FC = () => {
           title={
             <Stack direction="row" spacing={1} alignItems="center">
               <PaletteIcon fontSize="small" />
-              <span>外观</span>
+              <span>{tr('外观', 'Appearance')}</span>
             </Stack>
           }
         >
@@ -120,21 +123,35 @@ const SettingsPage: React.FC = () => {
                     onChange={() => dispatch(toggleThemeMode())}
                   />
                 }
-                label={settings.themeMode === 'dark' ? '深色模式' : '浅色模式'}
+                label={settings.themeMode === 'dark' ? tr('深色模式', 'Dark mode') : tr('浅色模式', 'Light mode')}
               />
             </Box>
 
             <Divider />
 
             <FormControl>
-              <FormLabel>密度</FormLabel>
+              <FormLabel>{tr('语言', 'Language')}</FormLabel>
+              <RadioGroup
+                row
+                value={settings.language}
+                onChange={(e) => dispatch(setLanguage(e.target.value as any))}
+              >
+                <FormControlLabel value="zh" control={<Radio />} label={tr('中文', 'Chinese')} />
+                <FormControlLabel value="en" control={<Radio />} label="English" />
+              </RadioGroup>
+            </FormControl>
+
+            <Divider />
+
+            <FormControl>
+              <FormLabel>{tr('密度', 'Density')}</FormLabel>
               <RadioGroup
                 row
                 value={settings.density as DensityMode}
                 onChange={(e) => dispatch(setDensity(e.target.value as DensityMode))}
               >
-                <FormControlLabel value="comfortable" control={<Radio />} label="舒适" />
-                <FormControlLabel value="compact" control={<Radio />} label="紧凑" />
+                <FormControlLabel value="comfortable" control={<Radio />} label={tr('舒适', 'Comfortable')} />
+                <FormControlLabel value="compact" control={<Radio />} label={tr('紧凑', 'Compact')} />
               </RadioGroup>
             </FormControl>
 
@@ -142,13 +159,13 @@ const SettingsPage: React.FC = () => {
 
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650, mb: 1 }}>
-                主色
+                {tr('主色', 'Primary color')}
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {PRIMARY_PRESETS.map((p) => (
                   <Chip
                     key={p.value}
-                    label={p.name}
+                    label={tr(p.zhName, p.enName)}
                     variant={settings.primaryColor === p.value ? 'filled' : 'outlined'}
                     onClick={() => dispatch(setPrimaryColor(p.value))}
                     sx={{
@@ -164,18 +181,18 @@ const SettingsPage: React.FC = () => {
           </Stack>
         </AppCard>
 
-        <AppCard title="仪表盘与告警">
+        <AppCard title={tr('仪表盘与告警', 'Dashboard & Alerts')}>
           <Stack spacing={2}>
             <FormControl>
-              <FormLabel>Dashboard 默认时间窗</FormLabel>
+              <FormLabel>{tr('Dashboard 默认时间窗', 'Default time range')}</FormLabel>
               <RadioGroup
                 row
                 value={settings.dashboard.rangePreset as DashboardRangePreset}
                 onChange={(e) => dispatch(setDashboardRangePreset(e.target.value as DashboardRangePreset))}
               >
-                <FormControlLabel value="7d" control={<Radio />} label="7天" />
-                <FormControlLabel value="30d" control={<Radio />} label="30天" />
-                <FormControlLabel value="90d" control={<Radio />} label="90天" />
+                <FormControlLabel value="7d" control={<Radio />} label={tr('7天', '7 days')} />
+                <FormControlLabel value="30d" control={<Radio />} label={tr('30天', '30 days')} />
+                <FormControlLabel value="90d" control={<Radio />} label={tr('90天', '90 days')} />
               </RadioGroup>
             </FormControl>
 
@@ -183,7 +200,7 @@ const SettingsPage: React.FC = () => {
 
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650, mb: 1 }}>
-                校准提前提醒（天）
+                {tr('校准提前提醒（天）', 'Calibration reminder (days)')}
               </Typography>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Slider
@@ -195,13 +212,20 @@ const SettingsPage: React.FC = () => {
                   valueLabelDisplay="auto"
                   sx={{ flexGrow: 1 }}
                 />
-                <Chip label={`${settings.alerts.calibrationDaysThreshold} 天`} sx={{ fontWeight: 650 }} />
+                <Chip
+                  label={
+                    settings.language === 'en'
+                      ? `${settings.alerts.calibrationDaysThreshold} d`
+                      : `${settings.alerts.calibrationDaysThreshold} 天`
+                  }
+                  sx={{ fontWeight: 650 }}
+                />
               </Stack>
             </Box>
 
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650, mb: 1 }}>
-                长时间占用阈值（小时）
+                {tr('长时间占用阈值（小时）', 'Long occupancy threshold (hours)')}
               </Typography>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Slider
@@ -221,14 +245,14 @@ const SettingsPage: React.FC = () => {
 
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650, mb: 1 }}>
-                自动刷新（秒）
+                {tr('自动刷新（秒）', 'Auto refresh (seconds)')}
               </Typography>
               <TextField
                 type="number"
                 value={settings.refreshSeconds}
                 onChange={(e) => dispatch(setRefreshSeconds(Number(e.target.value)))}
                 inputProps={{ min: 0, step: 5 }}
-                helperText="0 表示关闭自动刷新"
+                helperText={tr('0 表示关闭自动刷新', '0 disables auto refresh')}
                 fullWidth
               />
             </Box>
@@ -240,26 +264,33 @@ const SettingsPage: React.FC = () => {
             title={
               <Stack direction="row" spacing={1} alignItems="center">
                 <SyncAltIcon fontSize="small" />
-                <span>数据迁移</span>
+                <span>{tr('数据迁移', 'Data migration')}</span>
               </Stack>
             }
           >
             <Stack spacing={1.5}>
               <Typography variant="body2" color="text.secondary">
-                当前系统已以 assets 集合作为设备台账数据源；若你的 Firebase 仍只有 chambers 集合，需要先迁移一次。
+                {tr(
+                  '当前系统已以 assets 集合作为设备台账数据源；若你的 Firebase 仍只有 chambers 集合，需要先迁移一次。',
+                  'This app uses the assets collection as the source of truth. If your Firebase still only has the chambers collection, run a one-time migration first.'
+                )}
               </Typography>
 
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                 <Chip
-                  label={strategy === 'skip' ? '策略：跳过已存在' : '策略：覆盖写入'}
+                  label={
+                    strategy === 'skip'
+                      ? tr('策略：跳过已存在', 'Strategy: skip existing')
+                      : tr('策略：覆盖写入', 'Strategy: overwrite')
+                  }
                   onClick={() => setStrategy((s) => (s === 'skip' ? 'overwrite' : 'skip'))}
                   sx={{ fontWeight: 650 }}
                 />
                 <Button variant="outlined" onClick={handlePreview} disabled={!canMigrate || migrationLoading}>
-                  {migrationLoading ? <CircularProgress size={18} /> : '预览'}
+                  {migrationLoading ? <CircularProgress size={18} /> : tr('预览', 'Preview')}
                 </Button>
                 <Button variant="contained" onClick={handleMigrate} disabled={!canMigrate || migrationLoading}>
-                  {migrationLoading ? <CircularProgress size={18} /> : '执行迁移'}
+                  {migrationLoading ? <CircularProgress size={18} /> : tr('执行迁移', 'Run migration')}
                 </Button>
               </Stack>
 
@@ -267,8 +298,18 @@ const SettingsPage: React.FC = () => {
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   <Chip label={`chambers: ${preview.chambersCount}`} />
                   <Chip label={`assets(chamber): ${preview.assetsChamberCount}`} />
-                  <Chip label={`将新增: ${preview.wouldCreateCount}`} color="success" />
-                  <Chip label={`冲突: ${preview.conflictCount}`} color={preview.conflictCount > 0 ? 'warning' : 'default'} />
+                  <Chip
+                    label={
+                      settings.language === 'en'
+                        ? `To create: ${preview.wouldCreateCount}`
+                        : `将新增: ${preview.wouldCreateCount}`
+                    }
+                    color="success"
+                  />
+                  <Chip
+                    label={settings.language === 'en' ? `Conflicts: ${preview.conflictCount}` : `冲突: ${preview.conflictCount}`}
+                    color={preview.conflictCount > 0 ? 'warning' : 'default'}
+                  />
                 </Stack>
               ) : null}
 

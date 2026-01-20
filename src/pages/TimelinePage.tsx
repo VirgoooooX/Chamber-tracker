@@ -13,9 +13,11 @@ import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'
 import { alpha, useTheme } from '@mui/material/styles';
 import TitleWithIcon from '../components/TitleWithIcon'
+import { useI18n } from '../i18n'
 
 const TimelinePage: React.FC = () => {
     const theme = useTheme();
+    const { tr } = useI18n()
     const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const dispatch = useAppDispatch()
@@ -149,11 +151,11 @@ const TimelinePage: React.FC = () => {
                             lineHeight: 1.15,
                         }}
                     >
-                        <TitleWithIcon icon={<TimelineIcon />}>使用时间线</TitleWithIcon>
+                        <TitleWithIcon icon={<TimelineIcon />}>{tr('使用时间线', 'Usage timeline')}</TitleWithIcon>
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
                         <Button variant="outlined" size="small" onClick={() => setScrollToTodaySignal((n) => n + 1)} sx={{ whiteSpace: 'nowrap' }}>
-                            跳转今天
+                            {tr('跳转今天', 'Today')}
                         </Button>
                         <ToggleButtonGroup
                             value={dayWidthPx}
@@ -164,15 +166,15 @@ const TimelinePage: React.FC = () => {
                             }}
                             sx={{ flexShrink: 0 }}
                         >
-                            <ToggleButton value={140} sx={{ px: 1.25 }}>紧凑</ToggleButton>
-                            <ToggleButton value={200} sx={{ px: 1.25 }}>默认</ToggleButton>
-                            <ToggleButton value={260} sx={{ px: 1.25 }}>宽松</ToggleButton>
+                            <ToggleButton value={140} sx={{ px: 1.25 }}>{tr('紧凑', 'Compact')}</ToggleButton>
+                            <ToggleButton value={200} sx={{ px: 1.25 }}>{tr('默认', 'Default')}</ToggleButton>
+                            <ToggleButton value={260} sx={{ px: 1.25 }}>{tr('宽松', 'Wide')}</ToggleButton>
                         </ToggleButtonGroup>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                            <Chip label="未开始" size="small" sx={legendChipSx('not-started')} />
-                            <Chip label="进行中" size="small" sx={legendChipSx('in-progress')} />
-                            <Chip label="已完成" size="small" sx={legendChipSx('completed')} />
-                            <Chip label="已超时" size="small" sx={legendChipSx('overdue')} />
+                            <Chip label={tr('未开始', 'Not started')} size="small" sx={legendChipSx('not-started')} />
+                            <Chip label={tr('进行中', 'In progress')} size="small" sx={legendChipSx('in-progress')} />
+                            <Chip label={tr('已完成', 'Completed')} size="small" sx={legendChipSx('completed')} />
+                            <Chip label={tr('已超时', 'Overdue')} size="small" sx={legendChipSx('overdue')} />
                         </Box>
                         <Button
                             variant="contained"
@@ -182,7 +184,7 @@ const TimelinePage: React.FC = () => {
                             onClick={handleOpenNewUsageLogForm}
                             sx={{ whiteSpace: 'nowrap' }}
                         >
-                            登记新使用记录
+                            {tr('登记新使用记录', 'New usage log')}
                         </Button>
                     </Box>
                 </Box>
@@ -190,7 +192,10 @@ const TimelinePage: React.FC = () => {
                 {overdueCount > 0 && (
                     <Box sx={{ px: 2, pb: 1, backgroundColor: 'background.paper', borderBottom: '1px solid', borderBottomColor: 'divider', flexShrink: 0 }}>
                         <Alert severity="error" variant="filled">
-                            当前有 {overdueCount} 条超时未完成使用记录，请及时处理
+                            {tr(
+                              `当前有 ${overdueCount} 条超时未完成使用记录，请及时处理`,
+                              `There are ${overdueCount} overdue usage logs. Please handle them.`
+                            )}
                         </Alert>
                     </Box>
                 )}
@@ -206,15 +211,15 @@ const TimelinePage: React.FC = () => {
                     {loading && usageLogs.length === 0 ? ( // 初始加载且无数据时显示加载动画
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                             <CircularProgress />
-                            <Typography sx={{ ml: 2 }}>加载中...</Typography>
+                            <Typography sx={{ ml: 2 }}>{tr('加载中...', 'Loading...')}</Typography>
                         </Box>
                     ) : error ? ( // 加载出错时显示错误信息和重试按钮
                         <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', p:2 }}>
                             <Alert severity="error" sx={{width: '100%', maxWidth: '600px', mb: 2}}>
-                                加载时间轴数据失败: {error}
+                                {tr(`加载时间轴数据失败: ${error}`, `Failed to load timeline: ${error}`)}
                             </Alert>
                             <Button variant="outlined" onClick={() => { initialFetchDoneRef.current = false; dispatch(fetchUsageLogs()); }}>
-                                重试
+                                {tr('重试', 'Retry')}
                             </Button>
                         </Box>
                     ) : ( // 数据加载成功后渲染时间轴
@@ -248,8 +253,8 @@ const TimelinePage: React.FC = () => {
                 )}
                 <ConfirmDialog
                     open={Boolean(pendingDelete)}
-                    title="确认删除"
-                    description="确定要删除此配置的使用记录吗？此操作无法撤销。"
+                    title={tr('确认删除', 'Confirm deletion')}
+                    description={tr('确定要删除此配置的使用记录吗？此操作无法撤销。', 'Delete this config from the usage log? This action cannot be undone.')}
                     onClose={handleCloseDelete}
                     onConfirm={handleConfirmDelete}
                 />

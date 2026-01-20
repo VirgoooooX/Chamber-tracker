@@ -17,10 +17,10 @@ import {
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'; // 新增
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'; // 新增
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'; // 新增
-import { zhCN } from 'date-fns/locale'; // 新增
 import { Asset, AssetStatus } from '../types'
 import { addAsset, updateAsset } from '../store/assetsSlice'
 import { useAppDispatch } from '../store/hooks'
+import { useI18n } from '../i18n'
 
 interface ChamberFormProps {
   open: boolean;
@@ -31,6 +31,7 @@ interface ChamberFormProps {
 
 const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSaved }) => {
   const dispatch = useAppDispatch()
+  const { tr, dateFnsLocale } = useI18n()
   const [category, setCategory] = useState('')
   const [assetCode, setAssetCode] = useState('')
   const [name, setName] = useState('');
@@ -172,35 +173,35 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth> {/* 调整宽度以容纳更多字段 */}
-      <DialogTitle>{chamber ? '编辑设备' : '新增设备'}</DialogTitle>
+      <DialogTitle>{chamber ? tr('编辑设备', 'Edit asset') : tr('新增设备', 'New asset')}</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent dividers>
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}> {/* 新增 */}
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsLocale}>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
-                label="设备种类"
+                label={tr('设备种类', 'Category')}
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 fullWidth
-                placeholder="例如：环境箱 / 温湿度箱 / 夹具..."
+                placeholder={tr('例如：环境箱 / 温湿度箱 / 夹具...', 'e.g. chamber / temp-humidity / fixture...')}
               />
               <TextField
-                label="资产号"
+                label={tr('资产号', 'Asset code')}
                 value={assetCode}
                 onChange={(e) => setAssetCode(e.target.value)}
                 fullWidth
                 required
                 error={errors.assetCode}
-                helperText={errors.assetCode ? '请输入资产号' : ''}
+                helperText={errors.assetCode ? tr('请输入资产号', 'Asset code is required') : ''}
               />
               <TextField
-                label="名称"
+                label={tr('名称', 'Name')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 fullWidth
                 required
                 error={errors.name} // 新增
-                helperText={errors.name ? '请输入名称' : ''} // 新增
+                helperText={errors.name ? tr('请输入名称', 'Name is required') : ''}
               />
               
               <TextField
@@ -211,7 +212,7 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
               />
 
               <TextField
-                label="描述"
+                label={tr('描述', 'Description')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 fullWidth
@@ -220,61 +221,61 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
               />
               
               <FormControl fullWidth>
-                <InputLabel>状态</InputLabel>
+                <InputLabel>{tr('状态', 'Status')}</InputLabel>
                 <Select
                   value={status}
-                  label="状态"
+                  label={tr('状态', 'Status')}
                   onChange={handleStatusChange}
                 >
-                  <MenuItem value="available">可用</MenuItem>
-                  <MenuItem value="in-use">使用中</MenuItem>
-                  <MenuItem value="maintenance">维护中</MenuItem>
+                  <MenuItem value="available">{tr('可用', 'Available')}</MenuItem>
+                  <MenuItem value="in-use">{tr('使用中', 'In use')}</MenuItem>
+                  <MenuItem value="maintenance">{tr('维护中', 'Maintenance')}</MenuItem>
                 </Select>
               </FormControl>
 
               {/* 新增字段 */}
               <TextField
-                label="位置"
+                label={tr('位置', 'Location')}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 fullWidth
                 required
                 error={errors.location}
-                helperText={errors.location ? '请输入位置' : ''}
+                helperText={errors.location ? tr('请输入位置', 'Location is required') : ''}
               />
               <TextField
-                label="厂商"
+                label={tr('厂商', 'Manufacturer')}
                 value={manufacturer}
                 onChange={(e) => setManufacturer(e.target.value)}
                 fullWidth
                 required
                 error={errors.manufacturer}
-                helperText={errors.manufacturer ? '请输入厂商' : ''}
+                helperText={errors.manufacturer ? tr('请输入厂商', 'Manufacturer is required') : ''}
               />
               <TextField
-                label="型号"
+                label={tr('型号', 'Model')}
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 fullWidth
                 required
                 error={errors.model}
-                helperText={errors.model ? '请输入型号' : ''}
+                helperText={errors.model ? tr('请输入型号', 'Model is required') : ''}
               />
               <TextField
-                label="负责人"
+                label={tr('负责人', 'Owner')}
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
                 fullWidth
               />
               <TextField
-                label="标签"
+                label={tr('标签', 'Tags')}
                 value={tagsText}
                 onChange={(e) => setTagsText(e.target.value)}
                 fullWidth
-                placeholder="多个标签用逗号或换行分隔"
+                placeholder={tr('多个标签用逗号或换行分隔', 'Separate tags with comma or new line')}
               />
               <DateTimePicker
-                label="校验日期"
+                label={tr('校验日期', 'Calibration date')}
                 value={calibrationDate}
                 onChange={(newValue) => setCalibrationDate(newValue)}
                 slotProps={{
@@ -284,30 +285,30 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
                 }}
               />
               <TextField
-                label="设备照片（URL）"
+                label={tr('设备照片（URL）', 'Photos (URLs)')}
                 value={photoUrlsText}
                 onChange={(e) => setPhotoUrlsText(e.target.value)}
                 fullWidth
                 multiline
                 minRows={2}
-                placeholder="每行一个 URL（或用逗号分隔）"
+                placeholder={tr('每行一个 URL（或用逗号分隔）', 'One URL per line (or separated by commas)')}
               />
               <TextField
-                label="铭牌照片（URL）"
+                label={tr('铭牌照片（URL）', 'Nameplate photos (URLs)')}
                 value={nameplateUrlsText}
                 onChange={(e) => setNameplateUrlsText(e.target.value)}
                 fullWidth
                 multiline
                 minRows={2}
-                placeholder="每行一个 URL（或用逗号分隔）"
+                placeholder={tr('每行一个 URL（或用逗号分隔）', 'One URL per line (or separated by commas)')}
               />
             </Stack>
           </LocalizationProvider>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>取消</Button>
+          <Button onClick={onClose}>{tr('取消', 'Cancel')}</Button>
           <Button type="submit" variant="contained" color="primary">
-            保存
+            {tr('保存', 'Save')}
           </Button>
         </DialogActions>
       </form>

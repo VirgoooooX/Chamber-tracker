@@ -7,6 +7,7 @@ import { useAppSelector } from '../store/hooks'
 import PageShell from '../components/PageShell';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter'
 import TitleWithIcon from '../components/TitleWithIcon'
+import { useI18n } from '../i18n'
 
 const ProjectsPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
@@ -14,6 +15,7 @@ const ProjectsPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const { projects } = useAppSelector((state) => state.projects)
+  const { tr } = useI18n()
 
   const handleAddNew = () => {
     setSelectedProject(undefined);
@@ -44,7 +46,7 @@ const ProjectsPage: React.FC = () => {
   };
 
   return (
-    <PageShell title={<TitleWithIcon icon={<BusinessCenterIcon />}>项目</TitleWithIcon>}>
+    <PageShell title={<TitleWithIcon icon={<BusinessCenterIcon />}>{tr('项目', 'Projects')}</TitleWithIcon>}>
       <ProjectList 
         onEdit={handleEdit}
         onAddNew={handleAddNew}

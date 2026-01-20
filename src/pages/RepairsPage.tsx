@@ -47,22 +47,15 @@ import type { Asset, RepairStatus, RepairTicket } from '../types'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import { DateTimePicker, LocalizationProvider } from '@mui/x-date-pickers'
 import { zhCN } from 'date-fns/locale'
+import { useI18n } from '../i18n'
 
 type StatusFilter = RepairStatus | 'all'
-
-const statusLabel: Record<RepairStatus, string> = {
-  'quote-pending': '未询价',
-  'repair-pending': '待维修',
-  completed: '已完成',
-}
 
 const statusColor: Record<RepairStatus, 'warning' | 'info' | 'success'> = {
   'quote-pending': 'warning',
   'repair-pending': 'info',
   completed: 'success',
 }
-
-const formatDays = (value: number) => `${Math.max(0, Math.floor(value))} 天`
 
 const calcDaysFrom = (iso: string) => {
   const t = new Date(iso).getTime()
@@ -74,6 +67,7 @@ const RepairsPage: React.FC = () => {
   const dispatch = useAppDispatch()
   const assetsState = useAppSelector((s) => s.assets)
   const ticketsState = useAppSelector((s) => s.repairTickets)
+  const { tr, language } = useI18n()
 
   const [filter, setFilter] = useState<StatusFilter>('quote-pending')
   const [createOpen, setCreateOpen] = useState(false)
@@ -104,8 +98,24 @@ const RepairsPage: React.FC = () => {
   const sortedAssets = useMemo(() => {
     return assetsState.assets
       .slice()
-      .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { sensitivity: 'base' }))
-  }, [assetsState.assets])
+      .sort((a, b) => a.name.localeCompare(b.name, language === 'en' ? 'en' : 'zh-Hans-CN', { sensitivity: 'base' }))
+  }, [assetsState.assets, language])
+
+  const statusLabel = useMemo<Record<RepairStatus, string>>(
+    () => ({
+      'quote-pending': tr('未询价', 'Quote pending'),
+      'repair-pending': tr('待维修', 'Repair pending'),
+      completed: tr('已完成', 'Completed'),
+    }),
+    [tr]
+  )
+
+  const formatDays = useMemo(() => {
+    return (value: number) => {
+      const v = Math.max(0, Math.floor(value))
+      return language === 'en' ? `${v} d` : `${v} 天`
+    }
+  }, [language])
 
   const filteredTickets = useMemo(() => {
     if (filter === 'all') return ticketsState.tickets
@@ -216,7 +226,7 @@ const RepairsPage: React.FC = () => {
   return (
     <PageShell
       title={
-        <TitleWithIcon icon={<BuildCircleIcon />}>维修管理</TitleWithIcon>
+        <TitleWithIcon icon={<BuildCircleIcon />}>{tr('维修管理', 'Repairs')}</TitleWithIcon>
       }
       maxWidth="xl"
       actions={
@@ -226,22 +236,22 @@ const RepairsPage: React.FC = () => {
             color={counts.open > 0 ? 'warning' : 'default'}
             sx={{ fontWeight: 650 }}
           />
-          <Chip label={`未询价: ${counts.quotePending}`} variant="outlined" sx={{ fontWeight: 650 }} />
-          <Chip label={`待维修: ${counts.repairPending}`} variant="outlined" sx={{ fontWeight: 650 }} />
-          <Chip label={`已完成: ${counts.completed}`} variant="outlined" sx={{ fontWeight: 650 }} />
-          <Tooltip title="刷新">
+          <Chip label={language === 'en' ? `Quote pending: ${counts.quotePending}` : `未询价: ${counts.quotePending}`} variant="outlined" sx={{ fontWeight: 650 }} />
+          <Chip label={language === 'en' ? `Repair pending: ${counts.repairPending}` : `待维修: ${counts.repairPending}`} variant="outlined" sx={{ fontWeight: 650 }} />
+          <Chip label={language === 'en' ? `Completed: ${counts.completed}` : `已完成: ${counts.completed}`} variant="outlined" sx={{ fontWeight: 650 }} />
+          <Tooltip title={tr('刷新', 'Refresh')}>
             <IconButton onClick={handleRefresh} size="small" color="primary">
               <RefreshIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openCreate}>
-            新建工单
+            {tr('新建工单', 'New ticket')}
           </Button>
         </Stack>
       }
     >
       <AppCard
-        title="维修状态追踪"
+        title={tr('维修状态追踪', 'Repair status tracking')}
         actions={
           <ToggleButtonGroup
             value={filter}
@@ -252,10 +262,10 @@ const RepairsPage: React.FC = () => {
               setFilter(v)
             }}
           >
-            <ToggleButton value="quote-pending">未询价</ToggleButton>
-            <ToggleButton value="repair-pending">待维修</ToggleButton>
-            <ToggleButton value="completed">已完成</ToggleButton>
-            <ToggleButton value="all">全部</ToggleButton>
+            <ToggleButton value="quote-pending">{tr('未询价', 'Quote pending')}</ToggleButton>
+            <ToggleButton value="repair-pending">{tr('待维修', 'Repair pending')}</ToggleButton>
+            <ToggleButton value="completed">{tr('已完成', 'Completed')}</ToggleButton>
+            <ToggleButton value="all">{tr('全部', 'All')}</ToggleButton>
           </ToggleButtonGroup>
         }
       >
@@ -274,7 +284,7 @@ const RepairsPage: React.FC = () => {
         <Box sx={{ mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650 }}>
-              Open 占比
+              {tr('Open 占比', 'Open ratio')}
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 800 }}>
               {openProgress}%
@@ -285,7 +295,7 @@ const RepairsPage: React.FC = () => {
 
         <Stack spacing={1}>
           {filteredTickets.length === 0 ? (
-            <Typography color="text.secondary">暂无工单</Typography>
+            <Typography color="text.secondary">{tr('暂无工单', 'No tickets')}</Typography>
           ) : (
             filteredTickets.map((t) => {
               const asset = assetById.get(t.assetId)
@@ -317,7 +327,7 @@ const RepairsPage: React.FC = () => {
                   <Box sx={{ minWidth: 0 }}>
                     <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                       <Typography sx={{ fontWeight: 850 }} noWrap>
-                        {asset?.name || `设备 ${t.assetId.slice(0, 8)}`}
+                        {asset?.name || tr(`设备 ${t.assetId.slice(0, 8)}`, `Asset ${t.assetId.slice(0, 8)}`)}
                       </Typography>
                       <Chip size="small" label={statusLabel[t.status]} color={statusColor[t.status]} />
                     </Stack>
@@ -326,13 +336,13 @@ const RepairsPage: React.FC = () => {
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap">
-                    <Chip size="small" variant="outlined" label={`停机: ${formatDays(days)}`} />
+                    <Chip size="small" variant="outlined" label={tr(`停机: ${formatDays(days)}`, `Downtime: ${formatDays(days)}`)} />
                     {t.status !== 'quote-pending' ? (
                       <Chip
                         size="small"
                         variant="outlined"
                         icon={<LocalOfferIcon fontSize="small" />}
-                        label={t.quoteAmount !== undefined ? `${t.quoteAmount}` : '已询价'}
+                        label={t.quoteAmount !== undefined ? `${t.quoteAmount}` : tr('已询价', 'Quoted')}
                       />
                     ) : null}
                     <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); openEdit(t) }}>
@@ -348,26 +358,26 @@ const RepairsPage: React.FC = () => {
 
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
         <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle>新建维修工单</DialogTitle>
+          <DialogTitle>{tr('新建维修工单', 'New repair ticket')}</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2} sx={{ pt: 1 }}>
               <FormControl fullWidth size="small">
-                <InputLabel id="repair-asset-label">设备</InputLabel>
+                <InputLabel id="repair-asset-label">{tr('设备', 'Asset')}</InputLabel>
                 <Select
                   labelId="repair-asset-label"
-                  label="设备"
+                  label={tr('设备', 'Asset')}
                   value={createAssetId}
                   onChange={(e) => setCreateAssetId(e.target.value)}
                 >
                   {sortedAssets.map((a) => (
                     <MenuItem key={a.id} value={a.id} disabled={a.status === 'in-use'}>
-                      {a.name} {a.status === 'in-use' ? '(使用中)' : ''}
+                      {a.name} {a.status === 'in-use' ? tr('(使用中)', '(In use)') : ''}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <TextField
-                label="故障/需求描述"
+                label={tr('故障/需求描述', 'Issue / request')}
                 value={createProblemDesc}
                 onChange={(e) => setCreateProblemDesc(e.target.value)}
                 fullWidth
@@ -376,26 +386,29 @@ const RepairsPage: React.FC = () => {
                 minRows={2}
               />
               <DateTimePicker
-                label="预计回归时间（可选）"
+                label={tr('预计回归时间（可选）', 'Expected return time (optional)')}
                 value={createExpectedReturnAt}
                 onChange={(v) => setCreateExpectedReturnAt(v)}
                 slotProps={{ textField: { fullWidth: true, size: 'small' } }}
               />
               {assetsState.fallbackSource === 'chambers' ? (
                 <Alert severity="warning">
-                  当前设备列表来自旧的 chambers 集合；建议先做数据迁移以启用维修闭环更新。
+                  {tr(
+                    '当前设备列表来自旧的 chambers 集合；建议先做数据迁移以启用维修闭环更新。',
+                    'Assets are loaded from the legacy chambers collection. Run migration first to enable repair workflow updates.'
+                  )}
                 </Alert>
               ) : null}
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button>
             <Button
               variant="contained"
               onClick={handleSubmitCreate}
               disabled={!createAssetId || !createProblemDesc.trim() || ticketsState.loading}
             >
-              创建
+              {tr('创建', 'Create')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -409,13 +422,13 @@ const RepairsPage: React.FC = () => {
           fullWidth
           maxWidth="sm"
         >
-          <DialogTitle>工单详情</DialogTitle>
+          <DialogTitle>{tr('工单详情', 'Ticket details')}</DialogTitle>
           <DialogContent dividers>
             {!editing ? null : (
               <Stack spacing={2} sx={{ pt: 1 }}>
                 <Stack spacing={0.25}>
                   <Typography variant="body2" color="text.secondary">
-                    设备
+                    {tr('设备', 'Asset')}
                   </Typography>
                   <Typography sx={{ fontWeight: 800 }}>
                     {assetById.get(editing.assetId)?.name || editing.assetId}
@@ -423,10 +436,14 @@ const RepairsPage: React.FC = () => {
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                   <Chip size="small" label={statusLabel[editing.status]} color={statusColor[editing.status]} />
-                  <Chip size="small" variant="outlined" label={`停机: ${formatDays(calcDaysFrom(editing.createdAt))}`} />
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={tr(`停机: ${formatDays(calcDaysFrom(editing.createdAt))}`, `Downtime: ${formatDays(calcDaysFrom(editing.createdAt))}`)}
+                  />
                 </Stack>
                 <TextField
-                  label="故障/需求描述"
+                  label={tr('故障/需求描述', 'Issue / request')}
                   value={editProblemDesc}
                   onChange={(e) => setEditProblemDesc(e.target.value)}
                   fullWidth
@@ -439,14 +456,14 @@ const RepairsPage: React.FC = () => {
 
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                   <TextField
-                    label="供应商（可选）"
+                    label={tr('供应商（可选）', 'Vendor (optional)')}
                     value={editVendorName}
                     onChange={(e) => setEditVendorName(e.target.value)}
                     fullWidth
                     size="small"
                   />
                   <TextField
-                    label="报价（可选）"
+                    label={tr('报价（可选）', 'Quote (optional)')}
                     value={editQuoteAmount}
                     onChange={(e) => setEditQuoteAmount(e.target.value)}
                     fullWidth
@@ -456,7 +473,7 @@ const RepairsPage: React.FC = () => {
                 </Stack>
 
                 <DateTimePicker
-                  label="预计回归时间（可选）"
+                  label={tr('预计回归时间（可选）', 'Expected return time (optional)')}
                   value={editExpectedReturnAt}
                   onChange={(v) => setEditExpectedReturnAt(v)}
                   slotProps={{ textField: { fullWidth: true, size: 'small' } }}
@@ -465,7 +482,7 @@ const RepairsPage: React.FC = () => {
                 {editing.timeline && editing.timeline.length > 0 ? (
                   <Stack spacing={0.5}>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650 }}>
-                      流转记录
+                      {tr('流转记录', 'Timeline')}
                     </Typography>
                     {editing.timeline
                       .slice()
@@ -473,7 +490,7 @@ const RepairsPage: React.FC = () => {
                       .slice(0, 6)
                       .map((e, idx) => (
                         <Typography key={`${e.at}-${idx}`} variant="caption" color="text.secondary" noWrap>
-                          {new Date(e.at).toLocaleString()} · {e.from ? statusLabel[e.from] : '创建'} → {statusLabel[e.to]}
+                          {new Date(e.at).toLocaleString()} · {e.from ? statusLabel[e.from] : tr('创建', 'Created')} → {statusLabel[e.to]}
                           {e.note ? ` · ${e.note}` : ''}
                         </Typography>
                       ))}
@@ -489,12 +506,12 @@ const RepairsPage: React.FC = () => {
               onClick={() => setConfirmDeleteOpen(true)}
               disabled={!editing || ticketsState.loading}
             >
-              删除
+              {tr('删除', 'Delete')}
             </Button>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Button onClick={() => setEditOpen(false)}>关闭</Button>
+              <Button onClick={() => setEditOpen(false)}>{tr('关闭', 'Close')}</Button>
               <Button variant="outlined" onClick={handleSubmitEdit} disabled={!editing || ticketsState.loading}>
-                保存
+                {tr('保存', 'Save')}
               </Button>
               {editing?.status === 'quote-pending' ? (
                 <Button
@@ -503,7 +520,7 @@ const RepairsPage: React.FC = () => {
                   onClick={handleMarkQuoted}
                   disabled={!editing || !editVendorName.trim() || !editQuoteAmount || ticketsState.loading}
                 >
-                  标记已询价
+                  {tr('标记已询价', 'Mark quoted')}
                 </Button>
               ) : null}
               {editing?.status === 'repair-pending' ? (
@@ -514,7 +531,7 @@ const RepairsPage: React.FC = () => {
                   onClick={handleMarkCompleted}
                   disabled={!editing || ticketsState.loading}
                 >
-                  维修完成
+                  {tr('维修完成', 'Mark completed')}
                 </Button>
               ) : null}
             </Stack>
@@ -524,9 +541,9 @@ const RepairsPage: React.FC = () => {
 
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="确认删除"
-        description="确定要删除该维修工单吗？删除后将尝试把设备状态恢复为“可用”。"
-        confirmText="删除"
+        title={tr('确认删除', 'Confirm deletion')}
+        description={tr('确定要删除该维修工单吗？删除后将尝试把设备状态恢复为“可用”。', 'Delete this repair ticket? After deletion, the asset status will be restored to “available” if possible.')}
+        confirmText={tr('删除', 'Delete')}
         confirmColor="error"
         onClose={() => setConfirmDeleteOpen(false)}
         onConfirm={handleConfirmDelete}

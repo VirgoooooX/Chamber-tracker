@@ -7,6 +7,7 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
+import { useI18n } from '../i18n'
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -19,16 +20,18 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
 };
 
-const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-  open,
-  title,
-  description,
-  confirmText = '确认',
-  cancelText = '取消',
-  confirmColor = 'error',
-  onClose,
-  onConfirm,
-}) => {
+const ConfirmDialog: React.FC<ConfirmDialogProps> = (props) => {
+  const { tr } = useI18n()
+  const {
+    open,
+    title,
+    description,
+    confirmText = tr('确认', 'Confirm'),
+    cancelText = tr('取消', 'Cancel'),
+    confirmColor = 'error',
+    onClose,
+    onConfirm,
+  } = props
   return (
     <Dialog open={open} onClose={onClose} aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description">
       <DialogTitle id="confirm-dialog-title">{title}</DialogTitle>
@@ -46,4 +49,3 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 };
 
 export default ConfirmDialog;
-

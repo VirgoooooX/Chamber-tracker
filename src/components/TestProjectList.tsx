@@ -19,10 +19,10 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AppCard from './AppCard';
 import { format, parseISO, isValid } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
 import { TestProject } from '../types';
 import { fetchTestProjects } from '../store/testProjectsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { useI18n } from '../i18n'
 
 // 定义 Props 接口
 interface TestProjectListProps {
@@ -37,6 +37,7 @@ const TestProjectList: React.FC<TestProjectListProps> = ({ onEdit, onDelete }) =
     loading, 
     error 
   } = useAppSelector((state) => state.testProjects)
+  const { tr, dateFnsLocale } = useI18n()
 
   const dataFetchedRef = useRef(false);
 
@@ -51,15 +52,15 @@ const TestProjectList: React.FC<TestProjectListProps> = ({ onEdit, onDelete }) =
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
     const date = parseISO(dateString);
-    if (!isValid(date)) return '无效日期';
-    return format(date, 'yyyy-MM-dd HH:mm', { locale: zhCN });
+    if (!isValid(date)) return tr('无效日期', 'Invalid date');
+    return format(date, 'yyyy-MM-dd HH:mm', { locale: dateFnsLocale });
   };
 
   if (loading && !dataFetchedRef.current) { 
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
         <CircularProgress />
-        <Typography sx={{ ml: 2 }}>正在加载测试项目列表...</Typography>
+        <Typography sx={{ ml: 2 }}>{tr('正在加载测试项目列表...', 'Loading test projects...')}</Typography>
       </Box>
     );
   }
@@ -67,7 +68,7 @@ const TestProjectList: React.FC<TestProjectListProps> = ({ onEdit, onDelete }) =
   if (error && !loading) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
-        加载测试项目列表失败: {error}
+        {tr(`加载测试项目列表失败: ${error}`, `Failed to load test projects: ${error}`)}
         <Button // 现在 Button 组件应该能被正确识别了
             size="small" 
             onClick={() => {
@@ -76,32 +77,32 @@ const TestProjectList: React.FC<TestProjectListProps> = ({ onEdit, onDelete }) =
             }} 
             sx={{ ml: 2 }}
         >
-            重试
+            {tr('重试', 'Retry')}
         </Button>
       </Alert>
     );
   }
 
   return (
-    <AppCard title="测试项目列表" contentSx={{ mx: -2.5, mb: -2.5 }}>
+    <AppCard title={tr('测试项目列表', 'Test project list')} contentSx={{ mx: -2.5, mb: -2.5 }}>
       <TableContainer component={Box} sx={{ border: 'none', boxShadow: 'none', borderRadius: 0 }}>
-        <Table sx={{ minWidth: 650 }} aria-label="测试项目列表" size="small">
+        <Table sx={{ minWidth: 650 }} aria-label={tr('测试项目列表', 'Test project list')} size="small">
           <TableHead sx={{ backgroundColor: 'action.hover' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600 }}>名称</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="right">温度 (°C)</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="right">湿度 (%)</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="right">时长 (小时)</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>关联项目 ID</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>创建时间</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="center">操作</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('名称', 'Name')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">{tr('温度 (°C)', 'Temperature (°C)')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">{tr('湿度 (%)', 'Humidity (%)')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">{tr('时长 (小时)', 'Duration (hours)')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('关联项目 ID', 'Project ID')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('创建时间', 'Created')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">{tr('操作', 'Actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {testProjects.length === 0 && !loading && dataFetchedRef.current ? (
               <TableRow>
                 <TableCell colSpan={7} align="center">
-                  没有找到测试项目数据。
+                  {tr('没有找到测试项目数据。', 'No test projects found.')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -113,15 +114,15 @@ const TestProjectList: React.FC<TestProjectListProps> = ({ onEdit, onDelete }) =
                   <TableCell align="right">{tp.temperature}</TableCell>
                   <TableCell align="right">{tp.humidity}</TableCell>
                   <TableCell align="right">{tp.duration}</TableCell>
-                  <TableCell>{tp.projectId || '无'}</TableCell>
+                  <TableCell>{tp.projectId || tr('无', 'None')}</TableCell>
                   <TableCell>{formatDate(tp.createdAt)}</TableCell>
                   <TableCell align="center">
-                    <Tooltip title="编辑">
+                    <Tooltip title={tr('编辑', 'Edit')}>
                       <IconButton onClick={() => onEdit(tp)} size="small" color="primary">
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="删除">
+                    <Tooltip title={tr('删除', 'Delete')}>
                       <IconButton onClick={() => onDelete(tp.id)} size="small" color="error">
                         <DeleteIcon fontSize="small" />
                       </IconButton>

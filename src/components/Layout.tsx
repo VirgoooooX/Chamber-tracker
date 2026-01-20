@@ -1,5 +1,5 @@
 // src/components/Layout.tsx
-import React, { ReactNode, useState } from 'react'; // useState for potential FAB group open/close
+import React, { ReactNode, useMemo, useState } from 'react'; // useState for potential FAB group open/close
 import { useNavigate } from 'react-router-dom'; // useNavigate for programmatic navigation
 import {
   AppBar,
@@ -15,28 +15,16 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-// Icons for new navigation
-import AcUnitIcon from '@mui/icons-material/AcUnit'; // 环境箱管理
-import BusinessCenterIcon from '@mui/icons-material/BusinessCenter'; // 项目管理
-import ScienceIcon from '@mui/icons-material/Science'; // 测试项目管理
-import ListAltIcon from '@mui/icons-material/ListAlt'; // 使用记录管理
-import TimelineIcon from '@mui/icons-material/ViewTimeline'; // 时间轴视图 (主视图)
-import DashboardIcon from '@mui/icons-material/Dashboard'
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
-import SettingsIcon from '@mui/icons-material/Settings'
-// import MoreVertIcon from '@mui/icons-material/MoreVert'; // Alternative for FAB group trigger
-// import MenuIcon from '@mui/icons-material/Menu'; // Alternative for SpeedDial trigger
-
 import { logout } from '../store/authSlice'; // 新增
 import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 新增 (登出图标)
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { alpha } from '@mui/material/styles'
 import AppsIcon from '@mui/icons-material/Apps'
 import NavHubDialog from './NavHubDialog'
-import { navItems, navSections } from '../nav/navConfig'
+import { buildNavItems, buildNavSections } from '../nav/navConfig'
+import { useI18n } from '../i18n'
 
 const appBarHeight = '64px';
-const APP_NAME = '设备资产管理平台'
 
 interface LayoutProps {
   children: ReactNode;
@@ -55,6 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch()
   const { isAuthenticated, user } = useAppSelector((state) => state.auth)
+  const { tr } = useI18n()
 
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
   const [navHubOpen, setNavHubOpen] = useState(false)
@@ -75,6 +64,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // 根据用户角色和认证状态过滤 SpeedDial actions
   const role = user?.role as 'admin' | 'user' | undefined
+  const navSections = useMemo(() => buildNavSections(tr), [tr])
+  const navItems = useMemo(() => buildNavItems(tr), [tr])
   const filteredItems = isAuthenticated && role ? navItems.filter((i) => i.roles.includes(role)) : []
   const quickItems = filteredItems.filter((i) => i.quick).slice().sort((a, b) => a.order - b.order)
 
@@ -114,7 +105,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 // textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)', // 可以调整阴影
               }}
             >
-              {APP_NAME}
+              {tr('实验室设备管理平台', 'Lab Asset Management')}
               {user?.username ? ` (${user.username})` : ''}
             </Typography>
           </Box>
@@ -148,7 +139,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   },
                 }}
               >
-                登出
+                {tr('登出', 'Sign out')}
               </Button>
             </Box>
           ) : null}
@@ -217,10 +208,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       >
         <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-          © {new Date().getFullYear()} Jabil 内部专用 · All Rights Reserved · By Vigoss
+          © {new Date().getFullYear()} {tr('Jabil 内部专用', 'Internal use only')} · All Rights Reserved · By Vigoss
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-          · 版本 1.0.0
+          · {tr('版本', 'Version')} 2.0.0
         </Typography>
       </Box>
 
@@ -228,7 +219,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {isAuthenticated && (
         <FabContainer>
           <SpeedDial
-            ariaLabel="Navigation speed dial"
+            ariaLabel={tr('快捷导航', 'Quick navigation')}
             icon={<SpeedDialIcon />}
             onClose={handleSpeedDialClose}
             onOpen={handleSpeedDialOpen}

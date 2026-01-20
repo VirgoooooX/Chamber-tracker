@@ -33,16 +33,10 @@ import { fetchProjects } from '../store/projectsSlice'
 import { fetchTestProjects } from '../store/testProjectsSlice'
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'
 import type { UsageLog } from '../types'
+import { useI18n } from '../i18n'
 
 type Props = {
   mode: 'create' | 'view'
-}
-
-const getStatusLabel = (status: string) => {
-  if (status === 'available') return '可用'
-  if (status === 'in-use') return '使用中'
-  if (status === 'maintenance') return '维护中'
-  return status
 }
 
 const getStatusColor = (status: string): 'default' | 'success' | 'warning' | 'error' => {
@@ -65,6 +59,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
   const theme = useTheme()
   const { assetId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { tr, language } = useI18n()
 
   const role = useAppSelector((s) => s.auth.user?.role)
   const isAdmin = role === 'admin'
@@ -162,7 +157,10 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
     navigate('/chambers')
   }
 
-  const titleText = mode === 'create' ? '新增设备' : asset?.name ?? (assetId ? `设备 ${assetId.slice(0, 8)}` : '设备详情')
+  const titleText =
+    mode === 'create'
+      ? tr('新增设备', 'New asset')
+      : asset?.name ?? (assetId ? tr(`设备 ${assetId.slice(0, 8)}`, `Asset ${assetId.slice(0, 8)}`) : tr('设备详情', 'Asset details'))
 
   return (
     <PageShell
@@ -171,13 +169,23 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
       actions={
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
           <Button size="small" variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-            返回
+            {tr('返回', 'Back')}
           </Button>
           {mode === 'view' ? (
             <>
               <Chip
                 size="small"
-                label={asset ? getStatusLabel(asset.status) : '加载中'}
+                label={
+                  asset
+                    ? asset.status === 'available'
+                      ? tr('可用', 'Available')
+                      : asset.status === 'in-use'
+                        ? tr('使用中', 'In use')
+                        : asset.status === 'maintenance'
+                          ? tr('维护中', 'Maintenance')
+                          : asset.status
+                    : tr('加载中', 'Loading')
+                }
                 color={asset ? getStatusColor(asset.status) : 'default'}
                 variant={asset ? 'filled' : 'outlined'}
                 sx={{ fontWeight: 800 }}
@@ -196,7 +204,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                     }}
                     disabled={!asset}
                   >
-                    编辑
+                    {tr('编辑', 'Edit')}
                   </Button>
                   <Button
                     size="small"
@@ -206,7 +214,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                     onClick={() => setPendingDelete(true)}
                     disabled={!asset}
                   >
-                    删除
+                    {tr('删除', 'Delete')}
                   </Button>
                 </>
               ) : null}
@@ -218,32 +226,32 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
       {assetsLoading ? <LinearProgress sx={{ mb: 2 }} /> : null}
       {assetsError ? (
         <Alert severity="error" sx={{ mb: 2 }}>
-          加载设备失败：{assetsError}
+          {tr(`加载设备失败：${assetsError}`, `Failed to load asset: ${assetsError}`)}
         </Alert>
       ) : null}
 
       {mode === 'view' && !asset && !assetsLoading ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          未找到该设备，可能已被删除或无权限访问。
+          {tr('未找到该设备，可能已被删除或无权限访问。', 'Asset not found. It may be deleted or you may not have access.')}
         </Alert>
       ) : null}
 
       <Grid container spacing={2}>
         <Grid item xs={12} lg={7}>
-          <AppCard title="基础信息">
+          <AppCard title={tr('基础信息', 'Basic info')}>
             {!asset && mode === 'view' ? (
-              <Typography color="text.secondary">暂无数据</Typography>
+              <Typography color="text.secondary">{tr('暂无数据', 'No data')}</Typography>
             ) : (
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    设备种类
+                    {tr('设备种类', 'Category')}
                   </Typography>
-                  <Typography sx={{ fontWeight: 850 }}>{asset?.category || '环境箱'}</Typography>
+                  <Typography sx={{ fontWeight: 850 }}>{asset?.category || tr('环境箱', 'Chamber')}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    资产号
+                    {tr('资产号', 'Asset code')}
                   </Typography>
                   <Typography sx={{ fontWeight: 850 }}>{asset?.assetCode || '-'}</Typography>
                 </Grid>
@@ -255,43 +263,43 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    位置
+                    {tr('位置', 'Location')}
                   </Typography>
                   <Typography>{asset?.location || '-'}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    厂商 / 型号
+                    {tr('厂商 / 型号', 'Manufacturer / Model')}
                   </Typography>
                   <Typography>{`${asset?.manufacturer || '-'} / ${asset?.model || '-'}`}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    负责人
+                    {tr('负责人', 'Owner')}
                   </Typography>
                   <Typography>{asset?.owner || '-'}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    标签
+                    {tr('标签', 'Tags')}
                   </Typography>
-                  <Typography>{asset?.tags?.length ? asset.tags.join('，') : '-'}</Typography>
+                  <Typography>{asset?.tags?.length ? asset.tags.join(language === 'en' ? ', ' : '，') : '-'}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    校验日期
+                    {tr('校验日期', 'Calibration date')}
                   </Typography>
                   <Typography>{formatDateTime(asset?.calibrationDate)}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    更新时间
+                    {tr('更新时间', 'Updated')}
                   </Typography>
                   <Typography>{formatDateTime(asset?.updatedAt)}</Typography>
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
-                    描述
+                    {tr('描述', 'Description')}
                   </Typography>
                   <Typography>{asset?.description || '-'}</Typography>
                 </Grid>
@@ -302,7 +310,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
 
         <Grid item xs={12} lg={5}>
           <Stack spacing={2}>
-            <AppCard title={<TitleWithIcon icon={<PhotoIcon />}>设备照片</TitleWithIcon>}>
+            <AppCard title={<TitleWithIcon icon={<PhotoIcon />}>{tr('设备照片', 'Photos')}</TitleWithIcon>}>
               {asset?.photoUrls?.length ? (
                 <Grid container spacing={1}>
                   {asset.photoUrls.slice(0, 6).map((url) => (
@@ -310,7 +318,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                       <Box
                         component="img"
                         src={url}
-                        alt="设备照片"
+                        alt={tr('设备照片', 'Asset photo')}
                         sx={{
                           width: '100%',
                           aspectRatio: '4 / 3',
@@ -335,12 +343,12 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                     backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.25 : 0.35),
                   }}
                 >
-                  <Typography sx={{ fontWeight: 850 }}>暂无照片</Typography>
+                  <Typography sx={{ fontWeight: 850 }}>{tr('暂无照片', 'No photos')}</Typography>
                 </Box>
               )}
             </AppCard>
 
-            <AppCard title={<TitleWithIcon icon={<QrCode2Icon />}>铭牌</TitleWithIcon>}>
+            <AppCard title={<TitleWithIcon icon={<QrCode2Icon />}>{tr('铭牌', 'Nameplate')}</TitleWithIcon>}>
               {asset?.nameplateUrls?.length ? (
                 <Grid container spacing={1}>
                   {asset.nameplateUrls.slice(0, 6).map((url) => (
@@ -348,7 +356,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                       <Box
                         component="img"
                         src={url}
-                        alt="铭牌"
+                        alt={tr('铭牌', 'Nameplate')}
                         sx={{
                           width: '100%',
                           aspectRatio: '4 / 3',
@@ -373,7 +381,7 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                     backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.25 : 0.35),
                   }}
                 >
-                  <Typography sx={{ fontWeight: 850 }}>暂无铭牌信息</Typography>
+                  <Typography sx={{ fontWeight: 850 }}>{tr('暂无铭牌信息', 'No nameplate')}</Typography>
                 </Box>
               )}
             </AppCard>
@@ -382,17 +390,17 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
 
         <Grid item xs={12} lg={6}>
           <AppCard
-            title={<TitleWithIcon icon={<BuildCircleIcon />}>维修记录</TitleWithIcon>}
+            title={<TitleWithIcon icon={<BuildCircleIcon />}>{tr('维修记录', 'Repairs')}</TitleWithIcon>}
             actions={
               <Button size="small" variant="outlined" onClick={() => navigate('/repairs')} sx={{ whiteSpace: 'nowrap' }}>
-                打开维修管理
+                {tr('打开维修管理', 'Open repairs')}
               </Button>
             }
           >
             {repairLoading ? (
               <LinearProgress />
             ) : relatedRepairTickets.length === 0 ? (
-              <Typography color="text.secondary">暂无维修记录</Typography>
+              <Typography color="text.secondary">{tr('暂无维修记录', 'No repair tickets')}</Typography>
             ) : (
               <Stack spacing={1.25}>
                 {relatedRepairTickets.slice(0, 8).map((t) => (
@@ -412,15 +420,21 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                   >
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 850 }} noWrap>
-                        {t.problemDesc || '维修工单'}
+                        {t.problemDesc || tr('维修工单', 'Repair ticket')}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap>
-                        更新时间：{formatDateTime(t.updatedAt ?? t.createdAt)}
+                        {tr('更新时间：', 'Updated: ')}{formatDateTime(t.updatedAt ?? t.createdAt)}
                       </Typography>
                     </Box>
                     <Chip
                       size="small"
-                      label={t.status === 'quote-pending' ? '未询价' : t.status === 'repair-pending' ? '待维修' : '已完成'}
+                      label={
+                        t.status === 'quote-pending'
+                          ? tr('未询价', 'Quote pending')
+                          : t.status === 'repair-pending'
+                            ? tr('待维修', 'Repair pending')
+                            : tr('已完成', 'Completed')
+                      }
                       color={t.status === 'completed' ? 'success' : t.status === 'quote-pending' ? 'warning' : 'info'}
                     />
                   </Box>
@@ -431,11 +445,11 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
         </Grid>
 
         <Grid item xs={12} lg={6}>
-          <AppCard title={<TitleWithIcon icon={<ListAltIcon />}>使用记录</TitleWithIcon>}>
+          <AppCard title={<TitleWithIcon icon={<ListAltIcon />}>{tr('使用记录', 'Usage logs')}</TitleWithIcon>}>
             {usageLogsLoading ? (
               <LinearProgress />
             ) : relatedUsageLogs.length === 0 ? (
-              <Typography color="text.secondary">暂无使用记录</Typography>
+              <Typography color="text.secondary">{tr('暂无使用记录', 'No usage logs')}</Typography>
             ) : (
               <Stack spacing={1.25}>
                 {relatedUsageLogs.slice(0, 8).map((log) => {
@@ -444,12 +458,12 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                   const testProjectName = log.testProjectId ? testProjectNameById.get(log.testProjectId) : undefined
                   const label =
                     effectiveStatus === 'completed'
-                      ? '已完成'
+                      ? tr('已完成', 'Completed')
                       : effectiveStatus === 'in-progress'
-                        ? '使用中'
+                        ? tr('使用中', 'In use')
                         : effectiveStatus === 'overdue'
-                          ? '逾期'
-                          : '未开始'
+                          ? tr('逾期', 'Overdue')
+                          : tr('未开始', 'Not started')
 
                   const color =
                     effectiveStatus === 'completed'
@@ -482,13 +496,13 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                     >
                       <Box sx={{ minWidth: 0 }}>
                         <Typography sx={{ fontWeight: 850 }} noWrap>
-                          {projectName ?? testProjectName ?? '未关联项目'}
+                          {projectName ?? testProjectName ?? tr('未关联项目', 'Unlinked')}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" noWrap>
                           {formatDateTime(log.startTime)} → {formatDateTime(log.endTime)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" noWrap>
-                          使用人：{log.user || '-'}
+                          {tr('使用人：', 'User: ')}{log.user || '-'}
                         </Typography>
                       </Box>
                       <Chip size="small" label={label} color={color as any} />
@@ -512,8 +526,8 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
 
       <ConfirmDialog
         open={pendingDelete}
-        title="确认删除"
-        description="您确定要删除这个设备吗？此操作无法撤销。"
+        title={tr('确认删除', 'Confirm deletion')}
+        description={tr('您确定要删除这个设备吗？此操作无法撤销。', 'Delete this asset? This action cannot be undone.')}
         onClose={() => setPendingDelete(false)}
         onConfirm={handleDelete}
       />

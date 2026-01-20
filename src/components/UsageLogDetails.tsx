@@ -10,6 +10,7 @@ import type { ChipProps } from '@mui/material';
 import { UsageLog, Project, TestProject, Config as ConfigType } from '../types';
 import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { useI18n } from '../i18n'
 
 import { fetchAssetsByType } from '../store/assetsSlice'
 import { fetchProjects } from '../store/projectsSlice';
@@ -26,6 +27,7 @@ interface UsageLogDetailsProps {
 
 const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId }) => {
   const dispatch = useAppDispatch()
+  const { tr, dateFnsLocale } = useI18n()
 
   const { usageLogs, loading: loadingUsageLogsGlobal, error: errorUsageLogs } = useAppSelector((state) => state.usageLogs)
   const { assets: chambers, loading: loadingChambersGlobal, error: errorChambers } = useAppSelector((state) => state.assets)
@@ -97,7 +99,7 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
       setEffectiveStatus(getEffectiveUsageLogStatus(foundLog));
       // ... (rest of the logic to find chamber, project, testProject, configs)
         const foundChamber = chambers.find(c => c.id === foundLog.chamberId);
-        setChamberName(foundChamber ? foundChamber.name : (foundLog.chamberId ? `ID: ${foundLog.chamberId}`: '未知'));
+        setChamberName(foundChamber ? foundChamber.name : (foundLog.chamberId ? `ID: ${foundLog.chamberId}`: tr('未知', 'Unknown')));
 
         if (foundLog.projectId) {
             const foundProject = projects.find(p => p.id === foundLog.projectId);
@@ -128,7 +130,7 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
       if (!loadingUsageLogsGlobal) { // Double check usageLogs are not still loading
           setCurrentLog(null); setEffectiveStatus(null); setChamberName('');
           setLinkedProject(null); setLinkedTestProject(null); setSelectedConfigsDetails([]);
-          setDisplayError(`未找到记录 (ID: ${logId})。`);
+          setDisplayError(tr(`未找到记录 (ID: ${logId})。`, `Record not found (ID: ${logId}).`));
       } else {
           // This case implies usageLogs are still loading, so the outer 'anyGlobalDataLoading' should have caught it.
           // However, as a fallback, keep internalProcessing true.
@@ -147,24 +149,24 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'N/A';
     const date = parseISO(dateString);
-    return isValidDate(date) ? format(date, 'yyyy-MM-dd HH:mm', { locale: zhCN }) : '无效日期';
+    return isValidDate(date) ? format(date, 'yyyy-MM-dd HH:mm', { locale: dateFnsLocale }) : tr('无效日期', 'Invalid date');
   };
 
   const getStatusChipProperties = (status: UsageLog['status'] | null): { label: string; color: ChipProps['color'] } => {
-    if (!status && open && internalProcessing) return { label: '处理中...', color: 'default' };
+    if (!status && open && internalProcessing) return { label: tr('处理中...', 'Processing...'), color: 'default' };
     if (!status) return {label: '', color: 'default'};
     switch (status) {
-      case 'completed': return { label: '已完成', color: 'success' };
-      case 'in-progress': return { label: '进行中', color: 'warning' };
-      case 'not-started': return { label: '未开始', color: 'primary' };
-      case 'overdue': return { label: '已超时', color: 'error' };
-      default: return { label: '未知', color: 'default' };
+      case 'completed': return { label: tr('已完成', 'Completed'), color: 'success' };
+      case 'in-progress': return { label: tr('进行中', 'In progress'), color: 'warning' };
+      case 'not-started': return { label: tr('未开始', 'Not started'), color: 'primary' };
+      case 'overdue': return { label: tr('已超时', 'Overdue'), color: 'error' };
+      default: return { label: tr('未知', 'Unknown'), color: 'default' };
     }
   };
 
   const handleMarkAsCompleted = () => {
     if (currentLog && currentLog.id) {
-      if (window.confirm(`确定要将此记录标记为 "已完成" 吗？`)) {
+      if (window.confirm(tr('确定要将此记录标记为 "已完成" 吗？', 'Mark this log as "Completed"?'))) {
         dispatch(markLogAsCompleted(currentLog.id));
       }
     }
@@ -182,8 +184,121 @@ const UsageLogDetails: React.FC<UsageLogDetailsProps> = ({ open, onClose, logId 
   } else if (open && !currentLog && logId) {
     dialogInnerContent = ( <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}> <Typography color="text.secondary">未找到指定的记录 (ID: {logId})。</Typography> </Box> );
   } else if (currentLog && effectiveStatus) {
-    const statusProps = getStatusChipProperties(effectiveStatus);
-    dialogInnerContent = ( /* ... your existing JSX for displaying log details ... */ <Box p={2}> <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}> <Box sx={{ width: '100%' }}> <Box display="flex" justifyContent="space-between" alignItems="center"> <Typography variant="h5" component="div">{chamberName}</Typography> <Chip label={statusProps.label} color={statusProps.color} /> </Box> </Box> <Box sx={{ width: '100%' }}><Divider /></Box> <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: '48%' } }}> <Typography variant="subtitle2" gutterBottom>使用人</Typography> <Typography variant="body1">{currentLog.user}</Typography> </Box> <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: '48%' } }}> <Typography variant="subtitle2" gutterBottom>使用时间</Typography> <Typography variant="body1"> {`${formatDate(currentLog.startTime)} 至 ${formatDate(currentLog.endTime)}`} </Typography> </Box> </Box> <Paper elevation={1} sx={{ p: 2, mb: 2 }}> <Typography variant="h6" gutterBottom> 关联项目: {linkedProject ? linkedProject.name : (currentLog.projectId ? `ID: ${currentLog.projectId}` : '无')} </Typography> {linkedProject?.customerName && ( <Typography variant="body2" color="textSecondary" gutterBottom>客户: {linkedProject.customerName}</Typography> )} </Paper> <Paper elevation={1} sx={{ p: 2, mb: 2 }}> <Typography variant="h6" gutterBottom>使用的 Config(s)</Typography> {selectedConfigsDetails.length > 0 ? ( <List dense disablePadding> {selectedConfigsDetails.map((config) => ( <ListItem key={config.id} disableGutters dense sx={{ pt: 0, pb: 0.5 }}> <MuiListItemText primary={config.name} secondary={config.remark || '无备注'} primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }} secondaryTypographyProps={{ variant: 'caption' }} /> </ListItem> ))} </List> ) : ( <Typography variant="body2" color="text.secondary">此记录未指定 Config。</Typography> )} </Paper> <Paper elevation={1} sx={{ p: 2, mb: 2 }}> <Typography variant="h6" gutterBottom>使用的 WaterFall</Typography> {currentLog.selectedWaterfall ? ( <Chip label={currentLog.selectedWaterfall} size="small" color="secondary" variant="outlined"/> ) : ( <Typography variant="body2" color="text.secondary">此记录未指定 WaterFall。</Typography> )} </Paper> <Paper elevation={1} sx={{ p: 2, mb: 2 }}> <Typography variant="h6" gutterBottom> 关联测试项目: {linkedTestProject ? linkedTestProject.name : (currentLog.testProjectId ? `ID: ${currentLog.testProjectId}` : '无')} </Typography> {linkedTestProject && ( <> <Divider sx={{ my: 1 }} /> <Typography variant="subtitle1" gutterBottom sx={{ mt: 1 }}>测试参数:</Typography> <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}> <Box sx={{ flexBasis: 'calc(33.33% - 16px)'}}> <Typography variant="subtitle2">温度:</Typography> <Typography variant="body1">{linkedTestProject.temperature}°C</Typography> </Box> <Box sx={{ flexBasis: 'calc(33.33% - 16px)'}}> <Typography variant="subtitle2">湿度:</Typography> <Typography variant="body1">{linkedTestProject.humidity}%</Typography> </Box> <Box sx={{ flexBasis: 'calc(33.33% - 16px)'}}> <Typography variant="subtitle2">持续时间:</Typography> <Typography variant="body1">{linkedTestProject.duration}小时</Typography> </Box> </Box> </> )} </Paper> {currentLog.notes ? ( <Paper elevation={1} sx={{ p: 2, mt: 2 }}> <Typography variant="subtitle2" gutterBottom>使用记录备注</Typography> <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}> {currentLog.notes} </Typography> </Paper> ) : ( <Typography variant="body2" color="text.secondary" sx={{mt: 2}}>无使用记录备注。</Typography> )} </Box> );
+    const statusProps = getStatusChipProperties(effectiveStatus)
+    dialogInnerContent = (
+      <Box p={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+          <Typography variant="h5" component="div">
+            {chamberName}
+          </Typography>
+          <Chip label={statusProps.label} color={statusProps.color} />
+        </Box>
+
+        <Divider sx={{ mb: 2 }} />
+
+        <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            {tr('使用人', 'User')}
+          </Typography>
+          <Typography variant="body1">{currentLog?.user}</Typography>
+          <Divider sx={{ my: 1.25 }} />
+          <Typography variant="subtitle2" gutterBottom>
+            {tr('使用时间', 'Time')}
+          </Typography>
+          <Typography variant="body1">
+            {formatDate(currentLog?.startTime)} → {formatDate(currentLog?.endTime)}
+          </Typography>
+        </Paper>
+
+        <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {tr('关联项目', 'Project')}: {linkedProject ? linkedProject.name : (currentLog?.projectId ? `ID: ${currentLog?.projectId}` : tr('无', 'None'))}
+          </Typography>
+          {linkedProject?.customerName ? (
+            <Typography variant="body2" color="textSecondary" gutterBottom>
+              {tr('客户', 'Customer')}: {linkedProject.customerName}
+            </Typography>
+          ) : null}
+        </Paper>
+
+        <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {tr('使用的 Config(s)', 'Configs')}
+          </Typography>
+          {selectedConfigsDetails.length > 0 ? (
+            <List dense disablePadding>
+              {selectedConfigsDetails.map((config) => (
+                <ListItem key={config.id} disableGutters dense sx={{ pt: 0, pb: 0.5 }}>
+                  <MuiListItemText
+                    primary={config.name}
+                    secondary={config.remark || tr('无备注', 'No remark')}
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
+                    secondaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {tr('此记录未指定 Config。', 'No configs selected.')}
+            </Typography>
+          )}
+        </Paper>
+
+        <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {tr('使用的 WaterFall', 'Waterfall')}
+          </Typography>
+          {currentLog?.selectedWaterfall ? (
+            <Chip label={currentLog.selectedWaterfall} size="small" color="secondary" variant="outlined" />
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {tr('此记录未指定 WaterFall。', 'No waterfall selected.')}
+            </Typography>
+          )}
+        </Paper>
+
+        <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {tr('关联测试项目', 'Test project')}: {linkedTestProject ? linkedTestProject.name : (currentLog?.testProjectId ? `ID: ${currentLog?.testProjectId}` : tr('无', 'None'))}
+          </Typography>
+          {linkedTestProject ? (
+            <Box sx={{ mt: 1.25, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              <Box sx={{ flexBasis: 'calc(33.33% - 16px)' }}>
+                <Typography variant="subtitle2">{tr('温度', 'Temperature')}:</Typography>
+                <Typography variant="body1">{linkedTestProject.temperature}°C</Typography>
+              </Box>
+              <Box sx={{ flexBasis: 'calc(33.33% - 16px)' }}>
+                <Typography variant="subtitle2">{tr('湿度', 'Humidity')}:</Typography>
+                <Typography variant="body1">{linkedTestProject.humidity}%</Typography>
+              </Box>
+              <Box sx={{ flexBasis: 'calc(33.33% - 16px)' }}>
+                <Typography variant="subtitle2">{tr('持续时间', 'Duration')}:</Typography>
+                <Typography variant="body1">
+                  {linkedTestProject.duration}
+                  {tr('小时', 'h')}
+                </Typography>
+              </Box>
+            </Box>
+          ) : null}
+        </Paper>
+
+        {currentLog?.notes ? (
+          <Paper elevation={1} sx={{ p: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              {tr('使用记录备注', 'Notes')}
+            </Typography>
+            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+              {currentLog.notes}
+            </Typography>
+          </Paper>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {tr('无使用记录备注。', 'No notes.')}
+          </Typography>
+        )}
+      </Box>
+    )
   } else {
     if (open && !logId) { dialogInnerContent = <Typography sx={{p:2}}>错误：未提供记录ID。</Typography>; }
     else if (open) { dialogInnerContent = <Typography sx={{p:2}}>数据准备中或记录不存在...</Typography>; }

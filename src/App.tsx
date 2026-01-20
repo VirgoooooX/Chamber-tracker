@@ -18,6 +18,8 @@ import { loadUserFromStorage } from './store/authSlice'; // 新增
 import { loadSettingsFromStorage } from './store/settingsSlice'
 import { useEffect } from 'react'; // 新增
 import { useAppDispatch } from './store/hooks'
+import { signInAnonymously } from 'firebase/auth';
+import { auth } from './firebase-config';
 
 function App() {
   const dispatch = useAppDispatch()
@@ -25,6 +27,15 @@ function App() {
   useEffect(() => { // 新增: 应用启动时尝试从 localStorage 加载用户信息
     dispatch(loadUserFromStorage());
     dispatch(loadSettingsFromStorage())
+
+    // 匿名登录 Firebase，确保有权限访问 Storage
+    signInAnonymously(auth)
+      .then(() => {
+        console.log('Firebase Anonymous Auth successful');
+      })
+      .catch((error) => {
+        console.error('Firebase Anonymous Auth failed', error);
+      });
   }, [dispatch]);
 
   return (

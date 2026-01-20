@@ -40,7 +40,7 @@ coverage
 dist
 # Bower dependency directory (https://bower.io/)
 bower_components
-
+dist
 # node-waf configuration
 .lock-wscript
 

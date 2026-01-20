@@ -20,6 +20,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import AppsIcon from '@mui/icons-material/Apps'
 import { NavItem, NavSection, NavRole } from '../nav/navConfig'
 import TitleWithIcon from './TitleWithIcon'
+import { useI18n } from '../i18n'
 
 type Props = {
   open: boolean
@@ -34,6 +35,7 @@ const normalize = (value: string) => value.trim().toLowerCase()
 
 const NavHubDialog: React.FC<Props> = ({ open, onClose, sections, items, role, onNavigate }) => {
   const [query, setQuery] = useState('')
+  const { tr } = useI18n()
 
   useEffect(() => {
     if (open) setQuery('')
@@ -78,10 +80,10 @@ const NavHubDialog: React.FC<Props> = ({ open, onClose, sections, items, role, o
           <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
             <Stack spacing={0.25}>
               <Typography variant="h6" sx={{ fontWeight: 850 }}>
-                <TitleWithIcon icon={<AppsIcon />}>导航中心</TitleWithIcon>
+                <TitleWithIcon icon={<AppsIcon />}>{tr('导航中心', 'Navigation')}</TitleWithIcon>
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                搜索并快速跳转到功能页面
+                {tr('搜索并快速跳转到功能页面', 'Search and jump to pages')}
               </Typography>
             </Stack>
             <IconButton onClick={onClose} aria-label="close" size="small">
@@ -93,7 +95,7 @@ const NavHubDialog: React.FC<Props> = ({ open, onClose, sections, items, role, o
             <TextField
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索：总览 / 告警 / 使用记录 / 设备台账..."
+              placeholder={tr('搜索：总览 / 告警 / 使用记录 / 设备台账...', 'Search: overview / alerts / logs / assets...')}
               fullWidth
               autoFocus
               InputProps={{

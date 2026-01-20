@@ -23,6 +23,7 @@ import { fetchProjects, deleteProject } from '../store/projectsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import ConfirmDialog from './ConfirmDialog';
 import AppCard from './AppCard';
+import { useI18n } from '../i18n'
 
 interface ProjectListProps {
   onEdit: (id: string) => void;
@@ -34,6 +35,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
   const dispatch = useAppDispatch()
   const { projects, loading, error } = useAppSelector((state) => state.projects)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const { tr, language } = useI18n()
 
   useEffect(() => {
     dispatch(fetchProjects());
@@ -53,19 +55,19 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
         <CircularProgress />
-        <Typography sx={{ ml: 2 }}>正在加载项目列表...</Typography>
+        <Typography sx={{ ml: 2 }}>{tr('正在加载项目列表...', 'Loading projects...')}</Typography>
       </Box>
     );
   }
-  if (error) return <Alert severity="error">加载项目列表失败: {error}</Alert>;
+  if (error) return <Alert severity="error">{tr(`加载项目列表失败: ${error}`, `Failed to load projects: ${error}`)}</Alert>;
 
   return (
     <Box>
       <AppCard
-        title="项目列表"
+        title={tr('项目列表', 'Project list')}
         actions={
           <Button variant="contained" color="primary" onClick={onAddNew} startIcon={<AddIcon />}>
-            添加项目
+            {tr('添加项目', 'Add project')}
           </Button>
         }
         contentSx={{ mx: -2.5, mb: -2.5 }}
@@ -74,17 +76,17 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
           <Table size="small">
           <TableHead sx={{ backgroundColor: 'action.hover' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600 }}>名称</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>描述</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>配置数量</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>创建时间</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="center">操作</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('名称', 'Name')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('描述', 'Description')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('配置数量', 'Configs')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tr('创建时间', 'Created')}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">{tr('操作', 'Actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {projects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center">暂无数据</TableCell>
+                <TableCell colSpan={5} align="center">{tr('暂无数据', 'No data')}</TableCell>
               </TableRow>
             ) : (
               projects.map((project) => (
@@ -93,24 +95,24 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
                   <TableCell>{project.description || '-'}</TableCell>
                   <TableCell>
                     <Chip 
-                      label={`${project.configs?.length ?? 0}个配置`} 
+                      label={language === 'en' ? `${project.configs?.length ?? 0}` : `${project.configs?.length ?? 0}个配置`} 
                       color="primary" 
                       size="small" 
                     />
                   </TableCell>
                   <TableCell>{new Date(project.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell align="center">
-                    <Tooltip title="详情">
+                    <Tooltip title={tr('详情', 'Details')}>
                       <IconButton size="small" color="info" onClick={() => onViewDetails(project.id)}>
                         <VisibilityIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="编辑">
+                    <Tooltip title={tr('编辑', 'Edit')}>
                       <IconButton size="small" color="primary" onClick={() => onEdit(project.id)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="删除">
+                    <Tooltip title={tr('删除', 'Delete')}>
                       <IconButton size="small" color="error" onClick={() => handleDeleteClick(project.id)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -125,8 +127,8 @@ const ProjectList: React.FC<ProjectListProps> = ({ onEdit, onAddNew, onViewDetai
       </AppCard>
       <ConfirmDialog
         open={Boolean(pendingDeleteId)}
-        title="确认删除"
-        description="您确定要删除这个项目吗？此操作无法撤销。"
+        title={tr('确认删除', 'Confirm deletion')}
+        description={tr('您确定要删除这个项目吗？此操作无法撤销。', 'Delete this project? This action cannot be undone.')}
         onClose={handleCloseDelete}
         onConfirm={handleConfirmDelete}
       />

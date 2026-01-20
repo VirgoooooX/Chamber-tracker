@@ -24,7 +24,6 @@ import SpeedIcon from '@mui/icons-material/Speed'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
-import { zhCN } from 'date-fns/locale'
 import { startOfDay, subDays } from 'date-fns'
 import AppCard from '../components/AppCard'
 import PageShell from '../components/PageShell'
@@ -42,6 +41,7 @@ import { fetchProjects } from '../store/projectsSlice'
 import { fetchTestProjects } from '../store/testProjectsSlice'
 import { isUsageLogOccupyingAsset } from '../utils/statusHelpers'
 import type { Asset, UsageLog } from '../types'
+import { useI18n } from '../i18n'
 
 type RangePreset = '7d' | '30d' | '90d' | 'custom'
 
@@ -124,6 +124,7 @@ const DashboardPage: React.FC = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const theme = useTheme()
+  const { tr, dateFnsLocale, language } = useI18n()
 
   const assetsLoading = useAppSelector((s) => s.assets.loading)
   const usageLogsLoading = useAppSelector((s) => s.usageLogs.loading)
@@ -233,6 +234,7 @@ const DashboardPage: React.FC = () => {
   const activeOccupancies = useMemo<ActiveOccupancy[]>(() => {
     const now = new Date()
     const byChamber = new Map<string, UsageLog[]>()
+    const sortLocale = language === 'en' ? 'en' : 'zh-Hans-CN'
 
     usageLogs.forEach((log) => {
       if (!isUsageLogOccupyingAsset(log, now)) return
@@ -280,9 +282,9 @@ const DashboardPage: React.FC = () => {
     return result.sort((a, b) => {
       if (a.endMs !== b.endMs) return a.endMs - b.endMs
       if (a.startMs !== b.startMs) return b.startMs - a.startMs
-      return a.chamberName.localeCompare(b.chamberName, 'zh-Hans-CN')
+      return a.chamberName.localeCompare(b.chamberName, sortLocale)
     })
-  }, [assetNameById, usageLogs])
+  }, [assetNameById, language, usageLogs])
 
   const activeOccupancyByAssetId = useMemo(() => {
     const map = new Map<string, ActiveOccupancy>()
@@ -292,8 +294,9 @@ const DashboardPage: React.FC = () => {
 
   const assetsByCategory = useMemo(() => {
     const map = new Map<string, Asset[]>()
+    const sortLocale = language === 'en' ? 'en' : 'zh-Hans-CN'
     assets.forEach((asset) => {
-      const key = asset.category?.trim() || (asset.type === 'chamber' ? '环境箱' : asset.type)
+      const key = asset.category?.trim() || (asset.type === 'chamber' ? tr('环境箱', 'Chamber') : asset.type)
       const list = map.get(key) ?? []
       list.push(asset)
       map.set(key, list)
@@ -304,17 +307,17 @@ const DashboardPage: React.FC = () => {
         list.slice().sort((a, b) => {
           const aName = a.name || ''
           const bName = b.name || ''
-          return aName.localeCompare(bName, 'zh-Hans-CN')
+          return aName.localeCompare(bName, sortLocale)
         })
       )
     )
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'))
-  }, [assets])
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], sortLocale))
+  }, [assets, language, tr])
 
   return (
     <PageShell
       title={
-        <TitleWithIcon icon={<DashboardIcon />}>设备总览</TitleWithIcon>
+        <TitleWithIcon icon={<DashboardIcon />}>{tr('设备总览', 'Dashboard')}</TitleWithIcon>
       }
       maxWidth="xl"
       actions={
@@ -333,13 +336,13 @@ const DashboardPage: React.FC = () => {
               setPreset(value)
             }}
           >
-            <ToggleButton value="7d">7天</ToggleButton>
-            <ToggleButton value="30d">30天</ToggleButton>
-            <ToggleButton value="90d">90天</ToggleButton>
-            <ToggleButton value="custom">自定义</ToggleButton>
+            <ToggleButton value="7d">{tr('7天', '7d')}</ToggleButton>
+            <ToggleButton value="30d">{tr('30天', '30d')}</ToggleButton>
+            <ToggleButton value="90d">{tr('90天', '90d')}</ToggleButton>
+            <ToggleButton value="custom">{tr('自定义', 'Custom')}</ToggleButton>
           </ToggleButtonGroup>
           <Chip
-            label={`校准提醒: ${calibrationDaysThreshold}天`}
+            label={tr(`校准提醒: ${calibrationDaysThreshold}天`, `Calibration due: ${calibrationDaysThreshold} days`)}
             size="small"
             sx={{ fontWeight: 650 }}
           />
@@ -348,16 +351,19 @@ const DashboardPage: React.FC = () => {
     >
       {fallbackSource === 'chambers' ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          当前正在从旧的 chambers 集合读取数据（assets 尚未迁移）。建议到“设置 → 数据迁移”执行一键迁移。
+          {tr(
+            '当前正在从旧的 chambers 集合读取数据（assets 尚未迁移）。建议到“设置 → 数据迁移”执行一键迁移。',
+            'Data is being read from the legacy chambers collection (assets not migrated yet). Go to Settings → Data migration to run a one-click migration.'
+          )}
         </Alert>
       ) : null}
       {preset === 'custom' ? (
-        <AppCard title="时间窗">
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
+        <AppCard title={tr('时间窗', 'Time window')}>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsLocale}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <DateTimePicker
-                  label="开始时间"
+                  label={tr('开始时间', 'Start time')}
                   value={customStart}
                   onChange={(v) => setCustomStart(v)}
                   slotProps={{ textField: { fullWidth: true } }}
@@ -365,7 +371,7 @@ const DashboardPage: React.FC = () => {
               </Grid>
               <Grid item xs={12} md={6}>
                 <DateTimePicker
-                  label="结束时间"
+                  label={tr('结束时间', 'End time')}
                   value={customEnd}
                   onChange={(v) => setCustomEnd(v)}
                   slotProps={{ textField: { fullWidth: true } }}
@@ -417,25 +423,25 @@ const DashboardPage: React.FC = () => {
               >
                 {([
                   {
-                    label: '设备总数',
+                    label: tr('设备总数', 'Total'),
                     value: kpis.totalAssets,
                     color: theme.palette.primary.main,
                     icon: <AssessmentIcon fontSize="small" />,
                   },
                   {
-                    label: '可用',
+                    label: tr('可用', 'Available'),
                     value: kpis.statusCounts.available,
                     color: theme.palette.success.main,
                     icon: <EventAvailableIcon fontSize="small" />,
                   },
                   {
-                    label: '使用中',
+                    label: tr('使用中', 'In use'),
                     value: kpis.statusCounts['in-use'],
                     color: theme.palette.warning.main,
                     icon: <SpeedIcon fontSize="small" />,
                   },
                   {
-                    label: '维护中',
+                    label: tr('维护中', 'Maintenance'),
                     value: kpis.statusCounts.maintenance,
                     color: theme.palette.error.main,
                     icon: <BuildCircleIcon fontSize="small" />,
@@ -487,54 +493,75 @@ const DashboardPage: React.FC = () => {
 
         {([
           {
-            title: '维修追踪',
+            title: tr('维修追踪', 'Repairs'),
             tone: 'warning' as const,
             value: isRepairLoading ? '-' : String(repairStats.quotePending + repairStats.repairPending),
-            unit: '单',
+            unit: tr('单', ''),
             notes: [
-              `未询价：${isRepairLoading ? '-' : repairStats.quotePending}`,
-              `待维修：${isRepairLoading ? '-' : repairStats.repairPending}`,
-              `本周完成：${isRepairLoading ? '-' : repairStats.completedThisWeek}`,
+              tr(`未询价：${isRepairLoading ? '-' : repairStats.quotePending}`, `Quote pending: ${isRepairLoading ? '-' : repairStats.quotePending}`),
+              tr(`待维修：${isRepairLoading ? '-' : repairStats.repairPending}`, `Repair pending: ${isRepairLoading ? '-' : repairStats.repairPending}`),
+              tr(`本周完成：${isRepairLoading ? '-' : repairStats.completedThisWeek}`, `Completed (7d): ${isRepairLoading ? '-' : repairStats.completedThisWeek}`),
             ],
-            cta: { label: '进入维修', onClick: () => navigate('/repairs') },
-            chip: { label: '待处理', color: 'warning' as const },
+            cta: { label: tr('进入维修', 'Open repairs'), onClick: () => navigate('/repairs') },
+            chip: { label: tr('待处理', 'Action'), color: 'warning' as const },
           },
           {
-            title: `校验提醒（≤${kpis.calibrationDueSoon.daysThreshold}天）`,
+            title: tr(`校验提醒（≤${kpis.calibrationDueSoon.daysThreshold}天）`, `Calibration due (≤${kpis.calibrationDueSoon.daysThreshold}d)`),
             tone: 'warning' as const,
             value: String(kpis.calibrationDueSoon.count),
-            unit: '台',
+            unit: tr('台', ''),
             notes: [
-              `阈值：≤${kpis.calibrationDueSoon.daysThreshold}天`,
-              kpis.calibrationDueSoon.assets[0]?.name ? `最近到期：${kpis.calibrationDueSoon.assets[0].name}` : '最近到期：-',
+              tr(`阈值：≤${kpis.calibrationDueSoon.daysThreshold}天`, `Threshold: ≤${kpis.calibrationDueSoon.daysThreshold}d`),
+              kpis.calibrationDueSoon.assets[0]?.name
+                ? tr(`最近到期：${kpis.calibrationDueSoon.assets[0].name}`, `Next due: ${kpis.calibrationDueSoon.assets[0].name}`)
+                : tr('最近到期：-', 'Next due: -'),
               kpis.calibrationDueSoon.assets[0]?.calibrationDate
-                ? `日期：${new Date(kpis.calibrationDueSoon.assets[0].calibrationDate).toLocaleString()}`
-                : '日期：-',
+                ? tr(
+                    `日期：${new Date(kpis.calibrationDueSoon.assets[0].calibrationDate).toLocaleString()}`,
+                    `Date: ${new Date(kpis.calibrationDueSoon.assets[0].calibrationDate).toLocaleString()}`
+                  )
+                : tr('日期：-', 'Date: -'),
             ],
-            cta: { label: '查看设备', onClick: () => navigate('/chambers') },
-            chip: { label: kpis.calibrationDueSoon.count > 0 ? '需处理' : '正常', color: kpis.calibrationDueSoon.count > 0 ? ('warning' as const) : ('success' as const) },
+            cta: { label: tr('查看设备', 'View assets'), onClick: () => navigate('/chambers') },
+            chip: {
+              label: kpis.calibrationDueSoon.count > 0 ? tr('需处理', 'Needs action') : tr('正常', 'OK'),
+              color: kpis.calibrationDueSoon.count > 0 ? ('warning' as const) : ('success' as const),
+            },
           },
           {
-            title: '使用率',
+            title: tr('使用率', 'Utilization'),
             tone: 'primary' as const,
             value: utilizationText,
             unit: '',
             notes: [
-              `时间窗：${preset === 'custom' ? '自定义' : preset === '7d' ? '7天' : preset === '30d' ? '30天' : '90天'}`,
-              '口径：合并占用时段',
-              `数据：${isLoading ? '加载中' : '已更新'}`,
+              tr(
+                `时间窗：${preset === 'custom' ? '自定义' : preset === '7d' ? '7天' : preset === '30d' ? '30天' : '90天'}`,
+                `Window: ${preset === 'custom' ? 'Custom' : preset === '7d' ? '7d' : preset === '30d' ? '30d' : '90d'}`
+              ),
+              tr('口径：合并占用时段', 'Logic: merged occupancy'),
+              tr(`数据：${isLoading ? '加载中' : '已更新'}`, `Data: ${isLoading ? 'Loading' : 'Updated'}`),
             ],
-            cta: { label: '打开时间线', onClick: () => navigate('/timeline') },
-            chip: { label: '利用率', color: 'primary' as const },
+            cta: { label: tr('打开时间线', 'Open timeline'), onClick: () => navigate('/timeline') },
+            chip: { label: tr('利用率', 'Utilization'), color: 'primary' as const },
           },
           {
-            title: '超时/逾期',
+            title: tr('超时/逾期', 'Overdue'),
             tone: 'error' as const,
             value: String(kpis.overdueActiveCount),
-            unit: '条',
-            notes: ['口径：时间窗内逾期记录', `时间窗：${preset === 'custom' ? '自定义' : preset === '7d' ? '7天' : preset === '30d' ? '30天' : '90天'}`, `数据：${isLoading ? '加载中' : '已更新'}`],
-            cta: { label: '打开记录', onClick: () => navigate('/usage-logs') },
-            chip: { label: kpis.overdueActiveCount > 0 ? '关注' : '正常', color: kpis.overdueActiveCount > 0 ? ('error' as const) : ('success' as const) },
+            unit: tr('条', ''),
+            notes: [
+              tr('口径：时间窗内逾期记录', 'Logic: overdue within window'),
+              tr(
+                `时间窗：${preset === 'custom' ? '自定义' : preset === '7d' ? '7天' : preset === '30d' ? '30天' : '90天'}`,
+                `Window: ${preset === 'custom' ? 'Custom' : preset === '7d' ? '7d' : preset === '30d' ? '30d' : '90d'}`
+              ),
+              tr(`数据：${isLoading ? '加载中' : '已更新'}`, `Data: ${isLoading ? 'Loading' : 'Updated'}`),
+            ],
+            cta: { label: tr('打开记录', 'Open logs'), onClick: () => navigate('/usage-logs') },
+            chip: {
+              label: kpis.overdueActiveCount > 0 ? tr('关注', 'Attention') : tr('正常', 'OK'),
+              color: kpis.overdueActiveCount > 0 ? ('error' as const) : ('success' as const),
+            },
           },
         ] as const).map((card) => {
           const accent =
@@ -622,14 +649,14 @@ const DashboardPage: React.FC = () => {
       </Box>
 
       <AppCard
-        title="设备状态总览"
+        title={tr('设备状态总览', 'Asset status')}
         actions={
           <Stack direction="row" spacing={1}>
             <Button size="small" variant="outlined" onClick={() => navigate('/chambers')} sx={{ whiteSpace: 'nowrap' }}>
-              设备台账
+              {tr('设备台账', 'Assets')}
             </Button>
             <Button size="small" variant="outlined" onClick={() => navigate('/timeline')} sx={{ whiteSpace: 'nowrap' }}>
-              时间线
+              {tr('时间线', 'Timeline')}
             </Button>
           </Stack>
         }
@@ -642,7 +669,7 @@ const DashboardPage: React.FC = () => {
           </Box>
         ) : assetsByCategory.length === 0 ? (
           <Box sx={{ p: 2.5 }}>
-            <Typography color="text.secondary">暂无设备</Typography>
+            <Typography color="text.secondary">{tr('暂无设备', 'No assets')}</Typography>
           </Box>
         ) : (
           <Box sx={{ px: 2.5, pb: 2.5 }}>
@@ -663,12 +690,12 @@ const DashboardPage: React.FC = () => {
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                       <Stack direction="row" spacing={1.25} alignItems="center" sx={{ width: '100%', pr: 1 }}>
                         <Typography sx={{ fontWeight: 900 }}>{category}</Typography>
-                        <Chip size="small" label={`共 ${list.length}`} variant="outlined" sx={{ fontWeight: 800 }} />
+                        <Chip size="small" label={tr(`共 ${list.length}`, `Total ${list.length}`)} variant="outlined" sx={{ fontWeight: 800 }} />
                         <Box sx={{ flex: 1 }} />
                         <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
-                          <Chip size="small" label={`可用 ${statusCounts.available}`} color="success" variant="outlined" />
-                          <Chip size="small" label={`使用中 ${statusCounts.inUse}`} color="warning" variant="outlined" />
-                          <Chip size="small" label={`维护 ${statusCounts.maintenance}`} color="error" variant="outlined" />
+                          <Chip size="small" label={tr(`可用 ${statusCounts.available}`, `Available ${statusCounts.available}`)} color="success" variant="outlined" />
+                          <Chip size="small" label={tr(`使用中 ${statusCounts.inUse}`, `In use ${statusCounts.inUse}`)} color="warning" variant="outlined" />
+                          <Chip size="small" label={tr(`维护 ${statusCounts.maintenance}`, `Maintenance ${statusCounts.maintenance}`)} color="error" variant="outlined" />
                         </Stack>
                       </Stack>
                     </AccordionSummary>
@@ -705,14 +732,14 @@ const DashboardPage: React.FC = () => {
                             <Box sx={{ p: 0.25 }}>
                               <Typography sx={{ fontWeight: 900 }}>{asset.name}</Typography>
                               <Typography variant="body2" sx={{ mt: 0.5 }}>
-                                项目：{projectName ?? testProjectName ?? '-'}
+                                {tr('项目', 'Project')}: {projectName ?? testProjectName ?? '-'}
                               </Typography>
-                              <Typography variant="body2">使用人：{occupancy.log.user || '-'}</Typography>
-                              <Typography variant="body2">开始：{formatDateTime(occupancy.log.startTime)}</Typography>
-                              <Typography variant="body2">结束：{endText}</Typography>
+                              <Typography variant="body2">{tr('使用人', 'User')}: {occupancy.log.user || '-'}</Typography>
+                              <Typography variant="body2">{tr('开始', 'Start')}: {formatDateTime(occupancy.log.startTime)}</Typography>
+                              <Typography variant="body2">{tr('结束', 'End')}: {endText}</Typography>
                               {occupancy.log.notes ? (
                                 <Typography variant="body2" sx={{ mt: 0.5, maxWidth: 360 }}>
-                                  备注：{occupancy.log.notes}
+                                  {tr('备注', 'Notes')}: {occupancy.log.notes}
                                 </Typography>
                               ) : null}
                             </Box>
@@ -750,7 +777,7 @@ const DashboardPage: React.FC = () => {
                                   visibility: occupancy && asset.status === 'in-use' ? 'visible' : 'hidden',
                                 }}
                               >
-                                {occupancy ? `结束：${endText}` : '占位'}
+                                {occupancy ? tr(`结束：${endText}`, `End: ${endText}`) : tr('占位', 'placeholder')}
                               </Typography>
                             </Box>
                           )

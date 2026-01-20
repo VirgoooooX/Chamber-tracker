@@ -3,8 +3,10 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 export type ThemeMode = 'light' | 'dark'
 export type DensityMode = 'comfortable' | 'compact'
 export type DashboardRangePreset = '7d' | '30d' | '90d'
+export type Language = 'zh' | 'en'
 
 export interface SettingsState {
+  language: Language
   themeMode: ThemeMode
   density: DensityMode
   primaryColor: string
@@ -21,6 +23,7 @@ export interface SettingsState {
 const STORAGE_KEY = 'settings'
 
 const initialState: SettingsState = {
+  language: 'zh',
   themeMode: 'light',
   density: 'comfortable',
   primaryColor: '#155EEF',
@@ -56,6 +59,10 @@ const settingsSlice = createSlice({
       state.themeMode = action.payload
       persist(state)
     },
+    setLanguage(state, action: PayloadAction<Language>) {
+      state.language = action.payload
+      persist(state)
+    },
     toggleThemeMode(state) {
       state.themeMode = state.themeMode === 'light' ? 'dark' : 'light'
       persist(state)
@@ -89,6 +96,7 @@ const settingsSlice = createSlice({
 
 export const {
   loadSettingsFromStorage,
+  setLanguage,
   setThemeMode,
   toggleThemeMode,
   setDensity,
