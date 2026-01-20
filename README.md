@@ -2,8 +2,6 @@
 
 这是一个基于 React + TypeScript + Vite 构建的前端项目，用于管理设备台账、使用记录（含时间线）、告警与维修工单。数据目前使用 Firebase Firestore 持久化，前端通过 Redux Toolkit 进行状态管理，并支持导出使用记录为 Excel。
 
-线上地址（Firebase Hosting）：https://chamber-tracker-82406.web.app
-
 ## 核心功能
 
 - 设备台账：设备信息维护、状态（可用/使用中/维护中）、校准日期管理（管理员）
