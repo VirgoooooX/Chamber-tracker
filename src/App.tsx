@@ -14,28 +14,34 @@ import RepairsPage from './pages/RepairsPage'
 import AssetDetailPage from './pages/AssetDetailPage';
 import LoginPage from './pages/LoginPage'; // 新增
 import PrivateRoute from './components/PrivateRoute'; // 新增
-import { loadUserFromStorage } from './store/authSlice'; // 新增
+import { setAuthLoading, setAuthUser } from './store/authSlice'
 import { loadSettingsFromStorage } from './store/settingsSlice'
 import { useEffect } from 'react'; // 新增
 import { useAppDispatch } from './store/hooks'
-import { signInAnonymously } from 'firebase/auth';
-import { auth } from './firebase-config';
+import { getIdTokenResult, onAuthStateChanged } from 'firebase/auth'
+import { auth } from './firebase-config'
 
 function App() {
   const dispatch = useAppDispatch()
 
   useEffect(() => { // 新增: 应用启动时尝试从 localStorage 加载用户信息
-    dispatch(loadUserFromStorage());
     dispatch(loadSettingsFromStorage())
 
-    // 匿名登录 Firebase，确保有权限访问 Storage
-    signInAnonymously(auth)
-      .then(() => {
-        console.log('Firebase Anonymous Auth successful');
-      })
-      .catch((error) => {
-        console.error('Firebase Anonymous Auth failed', error);
-      });
+    dispatch(setAuthLoading(true))
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (!fbUser) {
+        dispatch(setAuthUser(null))
+        return
+      }
+
+      const tokenResult = await getIdTokenResult(fbUser, true)
+      const claims = tokenResult.claims as any
+      const role = claims?.role === 'admin' || claims?.admin === true ? 'admin' : 'user'
+      const username = fbUser.email ?? fbUser.displayName ?? fbUser.uid
+      dispatch(setAuthUser({ id: fbUser.uid, username, role }))
+    })
+
+    return () => unsubscribe()
   }, [dispatch]);
 
   return (

@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isPasswordUser() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    function signedIn() {
+      return isPasswordUser();
+    }
+
+    function isAdmin() {
+      return signedIn() && (request.auth.token.role == 'admin' || request.auth.token.admin == true);
+    }
+
+    match /assets/{assetId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /chambers/{chamberId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /testProjects/{testProjectId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /usageLogs/{logId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /repairTickets/{ticketId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

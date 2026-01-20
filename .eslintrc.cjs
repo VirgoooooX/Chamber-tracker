@@ -4,10 +4,23 @@ module.exports = {
     browser: true,
     es2020: true
   },
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+  },
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'react-hooks', 'react-refresh'],
   extends: ['eslint:recommended', 'plugin:react-hooks/recommended'],
   ignorePatterns: ['dist', 'build', 'node_modules'],
+  overrides: [
+    {
+      files: ['scripts/**/*.js'],
+      env: {
+        node: true,
+        browser: false,
+      },
+    },
+  ],
   rules: {
     'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     'no-unused-vars': 'off',

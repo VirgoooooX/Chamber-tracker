@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material'
 import { UserRole } from '../types'; // 确保路径正确
 import { useAppSelector } from '../store/hooks'
 
@@ -8,8 +9,16 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ allowedRoles }) => {
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, user, loading } = useAppSelector((state) => state.auth)
   const location = useLocation();
+
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
 
   if (!isAuthenticated) {
     // 用户未登录，重定向到登录页，并保存当前位置以便登录后返回

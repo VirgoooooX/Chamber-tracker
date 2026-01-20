@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  Alert,
   Box, 
   TextField, 
   Button, 
@@ -13,14 +14,16 @@ import {
   MenuItem,
   SelectChangeEvent,
   Stack,
+  Typography,
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'; // 新增
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'; // 新增
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'; // 新增
-import { Asset, AssetStatus } from '../types'
+import { Asset, AssetAttachment, AssetStatus } from '../types'
 import { addAsset, updateAsset } from '../store/assetsSlice'
 import { useAppDispatch } from '../store/hooks'
 import { useI18n } from '../i18n'
+import { deleteFile, uploadFile } from '../services/storageService'
 
 interface ChamberFormProps {
   open: boolean;
@@ -46,6 +49,11 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
   const [nameplateUrlsText, setNameplateUrlsText] = useState('')
   const [calibrationDate, setCalibrationDate] = useState<Date | null>(null); // 新增
   const [location, setLocation] = useState('')
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [nameplateUploading, setNameplateUploading] = useState(false)
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<AssetAttachment[]>([])
 
   // 表单验证
   const [errors, setErrors] = useState({
@@ -73,6 +81,7 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
       // Parse date strings back to Date objects
       setCalibrationDate(chamber.calibrationDate ? new Date(chamber.calibrationDate) : null);
       setLocation(chamber.location || '')
+      setAttachments(Array.isArray(chamber.attachments) ? chamber.attachments : [])
     } else {
       // 重置表单
       setCategory('')
@@ -89,9 +98,16 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
       setNameplateUrlsText('')
       setCalibrationDate(null); // 新增
       setLocation('')
+      setAttachments([])
       setErrors({ assetCode: false, name: false, manufacturer: false, model: false, location: false }); // 重置错误状态
     }
   }, [chamber, open]);
+
+  const parseList = (value: string) =>
+    value
+      .split(/[\n,]+/g)
+      .map((s) => s.trim())
+      .filter((s) => Boolean(s))
 
   const validateForm = () => { // 新增验证逻辑
     const newErrors = {
@@ -105,17 +121,123 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
     return !(newErrors.assetCode || newErrors.name || newErrors.manufacturer || newErrors.model || newErrors.location);
   };
 
+  const sanitizeFileName = (name: string) =>
+    name
+      .replace(/[^\w.\-() ]+/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 120)
+
+  const createObjectKey = (fileName: string) => {
+    const id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    return `${id}-${sanitizeFileName(fileName)}`
+  }
+
+  const handleUploadImages = async (kind: 'photo' | 'nameplate', files: FileList | null) => {
+    if (!chamber?.id) return
+    if (!files || files.length === 0) return
+
+    setUploadError(null)
+    if (kind === 'photo') setPhotoUploading(true)
+    if (kind === 'nameplate') setNameplateUploading(true)
+
+    try {
+      const list = Array.from(files)
+      const urls = await Promise.all(
+        list.map((file) => {
+          const objectKey = createObjectKey(file.name)
+          const folder = kind === 'photo' ? 'photos' : 'nameplates'
+          const path = `assets/${chamber.id}/${folder}/${objectKey}`
+          return uploadFile(file, path)
+        })
+      )
+
+      if (kind === 'photo') {
+        const nextText = parseList(photoUrlsText).concat(urls).join('\n')
+        setPhotoUrlsText(nextText)
+        await dispatch(updateAsset({ id: chamber.id, changes: { photoUrls: parseList(nextText) } })).unwrap()
+      } else {
+        const nextText = parseList(nameplateUrlsText).concat(urls).join('\n')
+        setNameplateUrlsText(nextText)
+        await dispatch(updateAsset({ id: chamber.id, changes: { nameplateUrls: parseList(nextText) } })).unwrap()
+      }
+    } catch (e: any) {
+      setUploadError(e?.message || tr('上传失败', 'Upload failed'))
+    } finally {
+      if (kind === 'photo') setPhotoUploading(false)
+      if (kind === 'nameplate') setNameplateUploading(false)
+    }
+  }
+
+  const formatBytes = (value?: number) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+    if (value < 1024) return `${value} B`
+    const kb = value / 1024
+    if (kb < 1024) return `${kb.toFixed(1)} KB`
+    const mb = kb / 1024
+    if (mb < 1024) return `${mb.toFixed(1)} MB`
+    const gb = mb / 1024
+    return `${gb.toFixed(2)} GB`
+  }
+
+  const handleUploadAttachments = async (files: FileList | null) => {
+    if (!chamber?.id) return
+    if (!files || files.length === 0) return
+
+    setUploadError(null)
+    setAttachmentsUploading(true)
+    try {
+      const list = Array.from(files)
+      const newItems = await Promise.all(
+        list.map(async (file) => {
+          const objectKey = createObjectKey(file.name)
+          const path = `assets/${chamber.id}/attachments/${objectKey}`
+          const url = await uploadFile(file, path)
+          return {
+            id: objectKey,
+            name: file.name,
+            url,
+            path,
+            contentType: file.type || undefined,
+            size: typeof file.size === 'number' ? file.size : undefined,
+            uploadedAt: new Date().toISOString(),
+          } as AssetAttachment
+        })
+      )
+
+      const merged = attachments.concat(newItems)
+      setAttachments(merged)
+      await dispatch(updateAsset({ id: chamber.id, changes: { attachments: merged } })).unwrap()
+    } catch (e: any) {
+      setUploadError(e?.message || tr('上传失败', 'Upload failed'))
+    } finally {
+      setAttachmentsUploading(false)
+    }
+  }
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!chamber?.id) return
+    const target = attachments.find((a) => a.id === attachmentId)
+    if (!target) return
+
+    setUploadError(null)
+    try {
+      await deleteFile(target.path || target.url)
+      const next = attachments.filter((a) => a.id !== attachmentId)
+      setAttachments(next)
+      await dispatch(updateAsset({ id: chamber.id, changes: { attachments: next } })).unwrap()
+    } catch (e: any) {
+      setUploadError(e?.message || tr('删除失败', 'Delete failed'))
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) { // 更新验证调用
       return;
     }
-
-    const parseList = (value: string) =>
-      value
-        .split(/[\n,]+/g)
-        .map((s) => s.trim())
-        .filter((s) => Boolean(s))
     
     const chamberData: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> = {
       type: 'chamber',
@@ -178,6 +300,7 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
         <DialogContent dividers>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsLocale}>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
+              {uploadError ? <Alert severity="error">{uploadError}</Alert> : null}
               <TextField
                 label={tr('设备种类', 'Category')}
                 value={category}
@@ -284,24 +407,140 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSav
                   }
                 }}
               />
-              <TextField
-                label={tr('设备照片（URL）', 'Photos (URLs)')}
-                value={photoUrlsText}
-                onChange={(e) => setPhotoUrlsText(e.target.value)}
-                fullWidth
-                multiline
-                minRows={2}
-                placeholder={tr('每行一个 URL（或用逗号分隔）', 'One URL per line (or separated by commas)')}
-              />
-              <TextField
-                label={tr('铭牌照片（URL）', 'Nameplate photos (URLs)')}
-                value={nameplateUrlsText}
-                onChange={(e) => setNameplateUrlsText(e.target.value)}
-                fullWidth
-                multiline
-                minRows={2}
-                placeholder={tr('每行一个 URL（或用逗号分隔）', 'One URL per line (or separated by commas)')}
-              />
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    component="label"
+                    size="small"
+                    variant="outlined"
+                    disabled={!chamber?.id || photoUploading}
+                  >
+                    {photoUploading ? tr('上传中…', 'Uploading…') : tr('上传照片', 'Upload photos')}
+                    <input
+                      hidden
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files
+                        e.target.value = ''
+                        handleUploadImages('photo', files)
+                      }}
+                    />
+                  </Button>
+                </Box>
+                <TextField
+                  label={tr('设备照片（URL）', 'Photos (URLs)')}
+                  value={photoUrlsText}
+                  onChange={(e) => setPhotoUrlsText(e.target.value)}
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  placeholder={tr('每行一个 URL（或用逗号分隔）', 'One URL per line (or separated by commas)')}
+                />
+              </Stack>
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    component="label"
+                    size="small"
+                    variant="outlined"
+                    disabled={!chamber?.id || nameplateUploading}
+                  >
+                    {nameplateUploading ? tr('上传中…', 'Uploading…') : tr('上传铭牌', 'Upload nameplate')}
+                    <input
+                      hidden
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files
+                        e.target.value = ''
+                        handleUploadImages('nameplate', files)
+                      }}
+                    />
+                  </Button>
+                </Box>
+                <TextField
+                  label={tr('铭牌照片（URL）', 'Nameplate photos (URLs)')}
+                  value={nameplateUrlsText}
+                  onChange={(e) => setNameplateUrlsText(e.target.value)}
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  placeholder={tr('每行一个 URL（或用逗号分隔）', 'One URL per line (or separated by commas)')}
+                />
+              </Stack>
+
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 850 }}>
+                    {tr('技术档案', 'Attachments')}
+                  </Typography>
+                  <Button component="label" size="small" variant="outlined" disabled={!chamber?.id || attachmentsUploading}>
+                    {attachmentsUploading ? tr('上传中…', 'Uploading…') : tr('上传附件', 'Upload')}
+                    <input
+                      hidden
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files
+                        e.target.value = ''
+                        handleUploadAttachments(files)
+                      }}
+                    />
+                  </Button>
+                </Box>
+
+                {attachments.length ? (
+                  <Stack spacing={1}>
+                    {attachments.slice(0, 8).map((a) => (
+                      <Box
+                        key={a.id}
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 2,
+                          p: 1.25,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 1.25,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontWeight: 850 }} noWrap>
+                            {a.name || tr('未命名文件', 'Untitled')}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            {formatBytes(a.size)} · {new Date(a.uploadedAt).toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                          <Button size="small" variant="outlined" component="a" href={a.url} target="_blank" rel="noreferrer">
+                            {tr('打开', 'Open')}
+                          </Button>
+                          <Button size="small" variant="outlined" color="error" onClick={() => handleDeleteAttachment(a.id)}>
+                            {tr('删除', 'Delete')}
+                          </Button>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      border: '1px dashed',
+                      borderColor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'),
+                      borderRadius: 2,
+                      p: 2,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 850 }}>{tr('暂无附件', 'No attachments')}</Typography>
+                  </Box>
+                )}
+              </Stack>
             </Stack>
           </LocalizationProvider>
         </DialogContent>

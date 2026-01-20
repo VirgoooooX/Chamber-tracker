@@ -1,5 +1,7 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User } from '../types'; // 确保路径正确
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createUserWithEmailAndPassword, getIdTokenResult, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { auth } from '../firebase-config'
+import type { User, UserRole } from '../types'
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -11,77 +13,127 @@ interface AuthState {
 const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
-  loading: false,
+  loading: true,
   error: null,
 };
 
-// 模拟的用户数据，实际应用中应从后端获取
-const mockUsers: User[] = [
-  { id: '1', username: 'admin', role: 'admin', password: 'admin' }, // 添加密码
-  { id: '2', username: 'user', role: 'user', password: '123' },   // 修改 user1 为 user 并添加密码
-];
+const getRoleFromClaims = (claims: Record<string, any>): UserRole => {
+  const role = claims?.role
+  if (role === 'admin' || role === 'user') return role
+  if (claims?.admin === true) return 'admin'
+  return 'user'
+}
+
+export const signInUser = createAsyncThunk<
+  User,
+  { email: string; password: string },
+  { rejectValue: string }
+>('auth/signInUser', async ({ email, password }, { rejectWithValue }) => {
+  try {
+    const credential = await signInWithEmailAndPassword(auth, email, password)
+    const tokenResult = await getIdTokenResult(credential.user, true)
+    const role = getRoleFromClaims(tokenResult.claims as any)
+    const username = credential.user.email ?? credential.user.displayName ?? credential.user.uid
+    return { id: credential.user.uid, username, role }
+  } catch (e: any) {
+    const code = e?.code as string | undefined
+    if (code === 'auth/invalid-credential') return rejectWithValue('账号或密码错误')
+    if (code === 'auth/too-many-requests') return rejectWithValue('尝试次数过多，请稍后再试')
+    return rejectWithValue(e?.message || '登录失败')
+  }
+})
+
+export const signOutUser = createAsyncThunk<void, void, { rejectValue: string }>(
+  'auth/signOutUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      await signOut(auth)
+    } catch (e: any) {
+      return rejectWithValue(e?.message || '登出失败')
+    }
+  }
+)
+
+export const signUpUser = createAsyncThunk<
+  User,
+  { email: string; password: string },
+  { rejectValue: string }
+>('auth/signUpUser', async ({ email, password }, { rejectWithValue }) => {
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email, password)
+    const tokenResult = await getIdTokenResult(credential.user, true)
+    const role = getRoleFromClaims(tokenResult.claims as any)
+    const username = credential.user.email ?? credential.user.displayName ?? credential.user.uid
+    return { id: credential.user.uid, username, role }
+  } catch (e: any) {
+    const code = e?.code as string | undefined
+    if (code === 'auth/email-already-in-use') return rejectWithValue('邮箱已被注册')
+    if (code === 'auth/invalid-email') return rejectWithValue('邮箱格式不正确')
+    if (code === 'auth/weak-password') return rejectWithValue('密码强度太弱（至少 6 位）')
+    return rejectWithValue(e?.message || '注册失败')
+  }
+})
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    loginStart(state) {
-      state.loading = true;
-      state.error = null;
+    setAuthLoading(state, action: PayloadAction<boolean>) {
+      state.loading = action.payload
     },
-    loginSuccess(state, action: PayloadAction<User>) {
-      state.isAuthenticated = true;
-      state.user = action.payload;
-      state.loading = false;
-      state.error = null;
-      // 实际应用中，可以将 token 或用户信息存入 localStorage
-      localStorage.setItem('user', JSON.stringify(action.payload));
+    setAuthError(state, action: PayloadAction<string | null>) {
+      state.error = action.payload
     },
-    loginFailure(state, action: PayloadAction<string>) {
-      state.isAuthenticated = false;
-      state.user = null;
-      state.loading = false;
-      state.error = action.payload;
+    setAuthUser(state, action: PayloadAction<User | null>) {
+      state.user = action.payload
+      state.isAuthenticated = Boolean(action.payload)
+      state.loading = false
+      state.error = null
     },
-    logout(state) {
-      state.isAuthenticated = false;
-      state.user = null;
-      state.loading = false;
-      state.error = null;
-      localStorage.removeItem('user');
-    },
-    // 用于应用启动时检查 localStorage 中是否有用户信息
-    loadUserFromStorage(state) {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            const user: User = JSON.parse(storedUser);
-            state.isAuthenticated = true;
-            state.user = user;
-        }
-    }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(signInUser.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(signInUser.fulfilled, (state, action) => {
+        state.user = action.payload
+        state.isAuthenticated = true
+        state.loading = false
+        state.error = null
+      })
+      .addCase(signInUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload ?? '登录失败'
+      })
+      .addCase(signUpUser.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(signUpUser.fulfilled, (state, action) => {
+        state.user = action.payload
+        state.isAuthenticated = true
+        state.loading = false
+        state.error = null
+      })
+      .addCase(signUpUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload ?? '注册失败'
+      })
+      .addCase(signOutUser.fulfilled, (state) => {
+        state.user = null
+        state.isAuthenticated = false
+        state.loading = false
+        state.error = null
+      })
+      .addCase(signOutUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload ?? '登出失败'
+      })
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, loadUserFromStorage } = authSlice.actions;
-
-// 模拟登录的 Thunk Action
-export const loginUser = (credentials: { username: string; password?: string }): any => // 修改凭据类型以包含密码
-  async (dispatch: any) => {
-    dispatch(loginStart());
-    // 模拟 API 调用
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const user = mockUsers.find(u => u.username === credentials.username);
-
-    if (user && user.password === credentials.password) { // 修改：校验密码
-      // 登录成功后，不应将密码存储在 Redux state 的 user 对象中或 localStorage
-      const { password: _password, ...userWithoutPassword } = user;
-      dispatch(loginSuccess(userWithoutPassword as User)); // 传递不含密码的用户信息
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword)); // 存储不含密码的用户信息
-      return true;
-    } else {
-      dispatch(loginFailure('用户名或密码错误'));
-      return false;
-    }
-  };
+export const { setAuthLoading, setAuthError, setAuthUser } = authSlice.actions
 
 export default authSlice.reducer;

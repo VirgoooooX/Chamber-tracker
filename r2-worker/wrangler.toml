@@ -1,0 +1,7 @@
+name = "chamber-r2-worker"
+main = "index.js"
+compatibility_date = "2026-01-20"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "chamber"

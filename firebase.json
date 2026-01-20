@@ -1,20 +1,16 @@
-        {
-          "hosting": {
-            "public": "dist",
-            "ignore": [
-              "firebase.json",
-              "**/.*",
-              "**/node_modules/**"
-            ],
-            "rewrites": [
-              {
-                "source": "/holidays/**",
-                "destination": "/holidays/**" 
-              },
-              {
-                "source": "**",
-                "destination": "/index.html" 
-              }
-            ]
-          }
-        }
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/holidays/**", "destination": "/holidays/**" },
+      { "source": "**", "destination": "/index.html" }
+    ]
+  }
+}

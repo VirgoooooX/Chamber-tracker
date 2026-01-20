@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-import { logout } from '../store/authSlice'; // 新增
+import { signOutUser } from '../store/authSlice'
 import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 新增 (登出图标)
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { alpha } from '@mui/material/styles'
@@ -57,7 +57,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const handleLogout = () => { // 新增
-    dispatch(logout());
+    dispatch(signOutUser());
     navigate('/login');
     setSpeedDialOpen(false);
   };
@@ -106,7 +106,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               }}
             >
               {tr('实验室设备管理平台', 'Lab Asset Management')}
-              {user?.username ? ` (${user.username})` : ''}
+              {role === 'admin' ? ' (admin)' : ''}
             </Typography>
           </Box>
           {isAuthenticated ? (

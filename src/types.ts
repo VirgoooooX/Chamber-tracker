@@ -11,6 +11,16 @@ export type AssetType = 'chamber'
 
 export type AssetStatus = 'available' | 'in-use' | 'maintenance'
 
+export interface AssetAttachment {
+  id: string
+  name: string
+  url: string
+  path: string
+  contentType?: string
+  size?: number
+  uploadedAt: string
+}
+
 export interface Asset {
   id: string
   type: AssetType
@@ -27,6 +37,7 @@ export interface Asset {
   owner?: string
   photoUrls?: string[]
   nameplateUrls?: string[]
+  attachments?: AssetAttachment[]
   calibrationDate?: string
   createdAt: string
   updatedAt?: string

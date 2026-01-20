@@ -9,12 +9,10 @@ firebase-debug.*.log*
 
 # Firebase cache
 .firebase/
-src\firebase-config.ts
 .trae
 # Firebase config
 .firebase
 .vscode
-src/firebase-config.ts
 # Uncomment this if you'd like others to create their own Firebase project.
 # For a team working on the same Firebase project(s), it is recommended to leave
 # it commented so all members can deploy to the same project(s) in .firebaserc.
@@ -43,10 +41,10 @@ bower_components
 dist
 # node-waf configuration
 .lock-wscript
-
+scripts
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
-
+service-account.json
 # Dependency directories
 node_modules/
 
@@ -67,6 +65,8 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.local
+.env.*.local
 
 # dataconnect generated files
 .dataconnect

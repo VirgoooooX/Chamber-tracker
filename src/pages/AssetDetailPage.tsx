@@ -16,6 +16,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PhotoIcon from '@mui/icons-material/Photo'
 import QrCode2Icon from '@mui/icons-material/QrCode2'
 import BadgeIcon from '@mui/icons-material/Badge'
+import AttachFileIcon from '@mui/icons-material/AttachFile'
 import BuildCircleIcon from '@mui/icons-material/BuildCircle'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import { alpha, useTheme } from '@mui/material/styles'
@@ -26,7 +27,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import ChamberForm from '../components/ChamberForm'
 import UsageLogDetails from '../components/UsageLogDetails'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { fetchAssetsByType, deleteAsset } from '../store/assetsSlice'
+import { fetchAssetsByType, deleteAsset, updateAsset } from '../store/assetsSlice'
 import { fetchUsageLogs } from '../store/usageLogsSlice'
 import { fetchRepairTickets } from '../store/repairTicketsSlice'
 import { fetchProjects } from '../store/projectsSlice'
@@ -34,6 +35,7 @@ import { fetchTestProjects } from '../store/testProjectsSlice'
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers'
 import type { UsageLog } from '../types'
 import { useI18n } from '../i18n'
+import { deleteFile, uploadFile } from '../services/storageService'
 
 type Props = {
   mode: 'create' | 'view'
@@ -79,6 +81,10 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
   const [editOpen, setEditOpen] = useState(mode === 'create')
   const [pendingDelete, setPendingDelete] = useState(false)
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [nameplateUploading, setNameplateUploading] = useState(false)
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     dispatch(fetchAssetsByType('chamber'))
@@ -132,6 +138,140 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
         return bTime - aTime
       })
   }, [assetId, mode, repairTickets])
+
+  const sanitizeFileName = (name: string) =>
+    name
+      .replace(/[^\w.\-() ]+/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 120)
+
+  const createObjectKey = (fileName: string) => {
+    const id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    return `${id}-${sanitizeFileName(fileName)}`
+  }
+
+  const handleUploadImages = async (kind: 'photo' | 'nameplate', files: FileList | null) => {
+    if (!assetId) return
+    if (!files || files.length === 0) return
+    if (!isAdmin) return
+
+    setUploadError(null)
+    if (kind === 'photo') setPhotoUploading(true)
+    if (kind === 'nameplate') setNameplateUploading(true)
+
+    try {
+      const list = Array.from(files)
+      const urls = await Promise.all(
+        list.map((file) => {
+          const objectKey = createObjectKey(file.name)
+          const folder = kind === 'photo' ? 'photos' : 'nameplates'
+          const path = `assets/${assetId}/${folder}/${objectKey}`
+          return uploadFile(file, path)
+        })
+      )
+
+      const existing = kind === 'photo' ? asset?.photoUrls ?? [] : asset?.nameplateUrls ?? []
+      const merged = existing.concat(urls)
+      await dispatch(
+        updateAsset({
+          id: assetId,
+          changes: kind === 'photo' ? { photoUrls: merged } : { nameplateUrls: merged },
+        })
+      ).unwrap()
+    } catch (e: any) {
+      setUploadError(e?.message || tr('上传失败', 'Upload failed'))
+    } finally {
+      if (kind === 'photo') setPhotoUploading(false)
+      if (kind === 'nameplate') setNameplateUploading(false)
+    }
+  }
+
+  const handleDeleteImage = async (kind: 'photo' | 'nameplate', url: string) => {
+    if (!assetId) return
+    if (!isAdmin) return
+
+    setUploadError(null)
+    try {
+      await deleteFile(url)
+      const existing = kind === 'photo' ? asset?.photoUrls ?? [] : asset?.nameplateUrls ?? []
+      const next = existing.filter((u) => u !== url)
+      await dispatch(
+        updateAsset({
+          id: assetId,
+          changes: kind === 'photo' ? { photoUrls: next } : { nameplateUrls: next },
+        })
+      ).unwrap()
+    } catch (e: any) {
+      setUploadError(e?.message || tr('删除失败', 'Delete failed'))
+    }
+  }
+
+  const formatBytes = (value?: number) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+    if (value < 1024) return `${value} B`
+    const kb = value / 1024
+    if (kb < 1024) return `${kb.toFixed(1)} KB`
+    const mb = kb / 1024
+    if (mb < 1024) return `${mb.toFixed(1)} MB`
+    const gb = mb / 1024
+    return `${gb.toFixed(2)} GB`
+  }
+
+  const handleUploadAttachments = async (files: FileList | null) => {
+    if (!assetId) return
+    if (!files || files.length === 0) return
+    if (!isAdmin) return
+
+    setUploadError(null)
+    setAttachmentsUploading(true)
+    try {
+      const list = Array.from(files)
+      const newItems = await Promise.all(
+        list.map(async (file) => {
+          const objectKey = createObjectKey(file.name)
+          const path = `assets/${assetId}/attachments/${objectKey}`
+          const url = await uploadFile(file, path)
+          return {
+            id: objectKey,
+            name: file.name,
+            url,
+            path,
+            contentType: file.type || undefined,
+            size: typeof file.size === 'number' ? file.size : undefined,
+            uploadedAt: new Date().toISOString(),
+          }
+        })
+      )
+
+      const existing = asset?.attachments ?? []
+      const merged = existing.concat(newItems)
+      await dispatch(updateAsset({ id: assetId, changes: { attachments: merged } })).unwrap()
+    } catch (e: any) {
+      setUploadError(e?.message || tr('上传失败', 'Upload failed'))
+    } finally {
+      setAttachmentsUploading(false)
+    }
+  }
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!assetId) return
+    if (!isAdmin) return
+    const existing = asset?.attachments ?? []
+    const target = existing.find((a) => a.id === attachmentId)
+    if (!target) return
+
+    setUploadError(null)
+    try {
+      await deleteFile(target.path || target.url)
+      const next = existing.filter((a) => a.id !== attachmentId)
+      await dispatch(updateAsset({ id: assetId, changes: { attachments: next } })).unwrap()
+    } catch (e: any) {
+      setUploadError(e?.message || tr('删除失败', 'Delete failed'))
+    }
+  }
 
   const handleCloseEdit = () => {
     setEditOpen(false)
@@ -236,6 +376,12 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
         </Alert>
       ) : null}
 
+      {uploadError ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {uploadError}
+        </Alert>
+      ) : null}
+
       <Grid container spacing={2}>
         <Grid item xs={12} lg={7}>
           <AppCard title={tr('基础信息', 'Basic info')}>
@@ -310,25 +456,74 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
 
         <Grid item xs={12} lg={5}>
           <Stack spacing={2}>
-            <AppCard title={<TitleWithIcon icon={<PhotoIcon />}>{tr('设备照片', 'Photos')}</TitleWithIcon>}>
+            <AppCard
+              title={<TitleWithIcon icon={<PhotoIcon />}>{tr('设备照片', 'Photos')}</TitleWithIcon>}
+              actions={
+                isAdmin && mode === 'view' && assetId ? (
+                  <Button component="label" size="small" variant="outlined" disabled={photoUploading}>
+                    {photoUploading ? tr('上传中…', 'Uploading…') : tr('上传', 'Upload')}
+                    <input
+                      hidden
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files
+                        e.target.value = ''
+                        handleUploadImages('photo', files)
+                      }}
+                    />
+                  </Button>
+                ) : null
+              }
+            >
               {asset?.photoUrls?.length ? (
                 <Grid container spacing={1}>
                   {asset.photoUrls.slice(0, 6).map((url) => (
                     <Grid item xs={6} key={url}>
                       <Box
-                        component="img"
-                        src={url}
-                        alt={tr('设备照片', 'Asset photo')}
                         sx={{
+                          position: 'relative',
                           width: '100%',
                           aspectRatio: '4 / 3',
-                          objectFit: 'cover',
                           borderRadius: 2,
                           border: '1px solid',
                           borderColor: 'divider',
                           backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.8),
                         }}
-                      />
+                      >
+                        <Box
+                          component="img"
+                          src={url}
+                          alt={tr('设备照片', 'Asset photo')}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            borderRadius: 2,
+                            display: 'block',
+                          }}
+                        />
+                        {isAdmin ? (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="contained"
+                            onClick={() => handleDeleteImage('photo', url)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              minWidth: 0,
+                              px: 1,
+                              py: 0.5,
+                              fontWeight: 850,
+                            }}
+                          >
+                            {tr('删', 'Del')}
+                          </Button>
+                        ) : null}
+                      </Box>
                     </Grid>
                   ))}
                 </Grid>
@@ -348,25 +543,74 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
               )}
             </AppCard>
 
-            <AppCard title={<TitleWithIcon icon={<QrCode2Icon />}>{tr('铭牌', 'Nameplate')}</TitleWithIcon>}>
+            <AppCard
+              title={<TitleWithIcon icon={<QrCode2Icon />}>{tr('铭牌', 'Nameplate')}</TitleWithIcon>}
+              actions={
+                isAdmin && mode === 'view' && assetId ? (
+                  <Button component="label" size="small" variant="outlined" disabled={nameplateUploading}>
+                    {nameplateUploading ? tr('上传中…', 'Uploading…') : tr('上传', 'Upload')}
+                    <input
+                      hidden
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files
+                        e.target.value = ''
+                        handleUploadImages('nameplate', files)
+                      }}
+                    />
+                  </Button>
+                ) : null
+              }
+            >
               {asset?.nameplateUrls?.length ? (
                 <Grid container spacing={1}>
                   {asset.nameplateUrls.slice(0, 6).map((url) => (
                     <Grid item xs={6} key={url}>
                       <Box
-                        component="img"
-                        src={url}
-                        alt={tr('铭牌', 'Nameplate')}
                         sx={{
+                          position: 'relative',
                           width: '100%',
                           aspectRatio: '4 / 3',
-                          objectFit: 'cover',
                           borderRadius: 2,
                           border: '1px solid',
                           borderColor: 'divider',
                           backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.8),
                         }}
-                      />
+                      >
+                        <Box
+                          component="img"
+                          src={url}
+                          alt={tr('铭牌', 'Nameplate')}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            borderRadius: 2,
+                            display: 'block',
+                          }}
+                        />
+                        {isAdmin ? (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="contained"
+                            onClick={() => handleDeleteImage('nameplate', url)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              minWidth: 0,
+                              px: 1,
+                              py: 0.5,
+                              fontWeight: 850,
+                            }}
+                          >
+                            {tr('删', 'Del')}
+                          </Button>
+                        ) : null}
+                      </Box>
                     </Grid>
                   ))}
                 </Grid>
@@ -382,6 +626,80 @@ const AssetDetailPage: React.FC<Props> = ({ mode }) => {
                   }}
                 >
                   <Typography sx={{ fontWeight: 850 }}>{tr('暂无铭牌信息', 'No nameplate')}</Typography>
+                </Box>
+              )}
+            </AppCard>
+
+            <AppCard
+              title={<TitleWithIcon icon={<AttachFileIcon />}>{tr('技术档案', 'Attachments')}</TitleWithIcon>}
+              actions={
+                isAdmin && mode === 'view' && assetId ? (
+                  <Button component="label" size="small" variant="outlined" disabled={attachmentsUploading}>
+                    {attachmentsUploading ? tr('上传中…', 'Uploading…') : tr('上传', 'Upload')}
+                    <input
+                      hidden
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files
+                        e.target.value = ''
+                        handleUploadAttachments(files)
+                      }}
+                    />
+                  </Button>
+                ) : null
+              }
+            >
+              {asset?.attachments?.length ? (
+                <Stack spacing={1}>
+                  {asset.attachments.slice(0, 8).map((a) => (
+                    <Box
+                      key={a.id}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 2,
+                        p: 1.25,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1.25,
+                        backgroundColor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.6),
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 850 }} noWrap>
+                          {a.name || tr('未命名文件', 'Untitled')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {formatBytes(a.size)} · {formatDateTime(a.uploadedAt)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                        <Button size="small" variant="outlined" component="a" href={a.url} target="_blank" rel="noreferrer">
+                          {tr('下载', 'Download')}
+                        </Button>
+                        {isAdmin ? (
+                          <Button size="small" variant="outlined" color="error" onClick={() => handleDeleteAttachment(a.id)}>
+                            {tr('删除', 'Delete')}
+                          </Button>
+                        ) : null}
+                      </Box>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Box
+                  sx={{
+                    border: '1px dashed',
+                    borderColor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.18),
+                    borderRadius: 2,
+                    p: 2.25,
+                    textAlign: 'center',
+                    backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.25 : 0.35),
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 850 }}>{tr('暂无附件', 'No attachments')}</Typography>
                 </Box>
               )}
             </AppCard>

@@ -14,7 +14,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase-config'
-import { Asset, AssetType } from '../types'
+import { Asset, AssetAttachment, AssetType } from '../types'
 import { sanitizeDataForFirestore } from './firestoreUtils'
 
 const COLLECTION_NAME = 'assets'
@@ -54,6 +54,19 @@ const docToAsset = (docSnap: DocumentSnapshot<DocumentData>): Asset => {
     owner: data.owner as string | undefined,
     photoUrls: Array.isArray(data.photoUrls) ? (data.photoUrls as string[]) : undefined,
     nameplateUrls: Array.isArray(data.nameplateUrls) ? (data.nameplateUrls as string[]) : undefined,
+    attachments: Array.isArray(data.attachments)
+      ? (data.attachments as any[]).map(
+          (a): AssetAttachment => ({
+            id: String(a?.id ?? ''),
+            name: String(a?.name ?? ''),
+            url: String(a?.url ?? ''),
+            path: String(a?.path ?? ''),
+            contentType: a?.contentType ? String(a.contentType) : undefined,
+            size: typeof a?.size === 'number' ? a.size : undefined,
+            uploadedAt: String(a?.uploadedAt ?? ''),
+          })
+        )
+      : undefined,
     calibrationDate,
     createdAt,
     updatedAt,
@@ -94,6 +107,7 @@ export const createAsset = async (
   if (assetData.category !== undefined) dataToSave.category = assetData.category
   if (assetData.photoUrls !== undefined) dataToSave.photoUrls = assetData.photoUrls
   if (assetData.nameplateUrls !== undefined) dataToSave.nameplateUrls = assetData.nameplateUrls
+  if (assetData.attachments !== undefined) dataToSave.attachments = assetData.attachments
 
   if (assetData.calibrationDate) {
     const d = new Date(assetData.calibrationDate)
