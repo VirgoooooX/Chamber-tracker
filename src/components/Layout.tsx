@@ -95,6 +95,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box
+              component="img"
+              src="/favicon.svg"
+              alt="Logo"
+              sx={{ width: 32, height: 32, mr: 1.5 }}
+            />
             <Typography
               variant="h6"
               noWrap
