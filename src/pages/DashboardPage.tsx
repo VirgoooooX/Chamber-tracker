@@ -9,6 +9,7 @@ import {
   Stack,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
@@ -33,10 +34,21 @@ import TitleWithIcon from '../components/TitleWithIcon'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import { fetchRepairTickets } from '../store/repairTicketsSlice'
 import { useNavigate } from 'react-router-dom'
+import { fetchProjects } from '../store/projectsSlice'
+import { fetchTestProjects } from '../store/testProjectsSlice'
+import { isUsageLogOccupyingAsset } from '../utils/statusHelpers'
+import type { UsageLog } from '../types'
 
 type RangePreset = '7d' | '30d' | '90d' | 'custom'
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`
+
+const formatDateTime = (value?: string) => {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleString()
+}
 
 const KpiTile: React.FC<{
   label: string
@@ -112,6 +124,9 @@ const DashboardPage: React.FC = () => {
   const repairTicketsLoading = useAppSelector((s) => s.repairTickets.loading)
   const repairTickets = useAppSelector((s) => s.repairTickets.tickets)
   const assets = useAppSelector((s) => s.assets.assets)
+  const usageLogs = useAppSelector((s) => s.usageLogs.usageLogs)
+  const projects = useAppSelector((s) => s.projects.projects)
+  const testProjects = useAppSelector((s) => s.testProjects.testProjects)
   const settings = useAppSelector((s) => s.settings)
   const fallbackSource = useAppSelector((s) => s.assets.fallbackSource)
 
@@ -128,6 +143,8 @@ const DashboardPage: React.FC = () => {
     dispatch(fetchAssetsByType('chamber'))
     dispatch(fetchUsageLogs())
     dispatch(fetchRepairTickets(undefined))
+    dispatch(fetchProjects())
+    dispatch(fetchTestProjects())
   }, [dispatch])
 
   const { startMs, endMs } = useMemo(() => {
@@ -185,6 +202,81 @@ const DashboardPage: React.FC = () => {
     assets.forEach((a) => map.set(a.id, a.name))
     return map
   }, [assets])
+
+  const projectNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    projects.forEach((p) => map.set(p.id, p.name))
+    return map
+  }, [projects])
+
+  const testProjectNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    testProjects.forEach((p) => map.set(p.id, p.name))
+    return map
+  }, [testProjects])
+
+  type ActiveOccupancy = {
+    chamberId: string
+    chamberName: string
+    log: UsageLog
+    activeCount: number
+    startMs: number
+    endMs: number
+  }
+
+  const activeOccupancies = useMemo<ActiveOccupancy[]>(() => {
+    const now = new Date()
+    const byChamber = new Map<string, UsageLog[]>()
+
+    usageLogs.forEach((log) => {
+      if (!isUsageLogOccupyingAsset(log, now)) return
+      const list = byChamber.get(log.chamberId) ?? []
+      list.push(log)
+      byChamber.set(log.chamberId, list)
+    })
+
+    const parseMs = (value?: string, fallback: number = Number.POSITIVE_INFINITY) => {
+      if (!value) return fallback
+      const ms = new Date(value).getTime()
+      return Number.isNaN(ms) ? fallback : ms
+    }
+
+    const pickBestLog = (logs: UsageLog[]) => {
+      const nowMs = now.getTime()
+      return logs
+        .slice()
+        .sort((a, b) => {
+          const aEnd = parseMs(a.endTime)
+          const bEnd = parseMs(b.endTime)
+          if (aEnd !== bEnd) return aEnd - bEnd
+          const aStart = parseMs(a.startTime, nowMs)
+          const bStart = parseMs(b.startTime, nowMs)
+          return bStart - aStart
+        })[0]
+    }
+
+    const result: ActiveOccupancy[] = []
+    byChamber.forEach((logs, chamberId) => {
+      const best = pickBestLog(logs)
+      const chamberName = assetNameById.get(chamberId) ?? chamberId.slice(0, 8)
+      const startMs = parseMs(best.startTime, now.getTime())
+      const endMs = parseMs(best.endTime)
+      result.push({
+        chamberId,
+        chamberName,
+        log: best,
+        activeCount: logs.length,
+        startMs,
+        endMs,
+      })
+    })
+
+    return result.sort((a, b) => {
+      if (a.endMs !== b.endMs) return a.endMs - b.endMs
+      if (a.startMs !== b.startMs) return b.startMs - a.startMs
+      return a.chamberName.localeCompare(b.chamberName, 'zh-Hans-CN')
+    })
+  }, [assetNameById, usageLogs])
 
   return (
     <PageShell
@@ -314,6 +406,106 @@ const DashboardPage: React.FC = () => {
           />
         </Grid>
       </Grid>
+
+      <AppCard
+        title={`当前使用中设备（${activeOccupancies.length}）`}
+        actions={
+          <Stack direction="row" spacing={1}>
+            <Button size="small" variant="outlined" onClick={() => navigate('/timeline')} sx={{ whiteSpace: 'nowrap' }}>
+              时间线
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => navigate('/usage-logs')} sx={{ whiteSpace: 'nowrap' }}>
+              使用记录
+            </Button>
+          </Stack>
+        }
+        sx={{ mt: 2 }}
+      >
+        {usageLogsLoading ? (
+          <LinearProgress />
+        ) : activeOccupancies.length === 0 ? (
+          <Typography color="text.secondary">当前无设备在使用</Typography>
+        ) : (
+          <Stack spacing={1.25}>
+            {activeOccupancies.slice(0, 10).map((item) => {
+              const projectName = item.log.projectId ? projectNameById.get(item.log.projectId) : undefined
+              const testProjectName = item.log.testProjectId ? testProjectNameById.get(item.log.testProjectId) : undefined
+              const endText = formatDateTime(item.log.endTime)
+              const nowMs = Date.now()
+              const isOverdue = Number.isFinite(item.endMs) && item.endMs < nowMs
+              const detail = (
+                <Box sx={{ p: 0.25 }}>
+                  <Typography sx={{ fontWeight: 850 }}>{item.chamberName}</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    项目：{projectName ?? testProjectName ?? '-'}
+                  </Typography>
+                  <Typography variant="body2">使用人：{item.log.user || '-'}</Typography>
+                  <Typography variant="body2">开始：{formatDateTime(item.log.startTime)}</Typography>
+                  <Typography variant="body2">结束：{endText}</Typography>
+                  {item.log.notes ? (
+                    <Typography variant="body2" sx={{ mt: 0.5, maxWidth: 360 }}>
+                      备注：{item.log.notes}
+                    </Typography>
+                  ) : null}
+                </Box>
+              )
+
+              return (
+                <Tooltip
+                  key={`${item.chamberId}:${item.log.id}`}
+                  title={detail}
+                  arrow
+                  placement="top-start"
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.98 : 0.96),
+                        color: 'text.primary',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        boxShadow: (theme) =>
+                          `0 12px 28px ${alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.48 : 0.22)}`,
+                      },
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      p: 1.25,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1.5,
+                      backgroundColor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.6),
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 850 }} noWrap>
+                          {item.chamberName}
+                        </Typography>
+                        {item.activeCount > 1 ? <Chip size="small" label="多条记录" color="warning" /> : null}
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        预计结束：{endText}
+                      </Typography>
+                    </Box>
+                    <Chip size="small" label={isOverdue ? '逾期' : '使用中'} color={isOverdue ? 'error' : 'warning'} />
+                  </Box>
+                </Tooltip>
+              )
+            })}
+            {activeOccupancies.length > 10 ? (
+              <Typography variant="caption" color="text.secondary">
+                仅展示前 10 条，更多请到“时间线 / 使用记录”查看
+              </Typography>
+            ) : null}
+          </Stack>
+        )}
+      </AppCard>
 
       <Grid container spacing={2} sx={{ mt: 2 }}>
         <Grid item xs={12} md={6}>
