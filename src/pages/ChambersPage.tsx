@@ -1,36 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ChamberList from '../components/ChamberList';
-import ChamberForm from '../components/ChamberForm';
-import { Asset } from '../types'
 import { useAppSelector } from '../store/hooks'
 import PageShell from '../components/PageShell';
 import { Alert } from '@mui/material'
 import AcUnitIcon from '@mui/icons-material/AcUnit'
 import TitleWithIcon from '../components/TitleWithIcon'
+import { useNavigate } from 'react-router-dom'
 
 const ChambersPage: React.FC = () => {
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedChamber, setSelectedChamber] = useState<Asset | undefined>(undefined)
-  const { assets: chambers } = useAppSelector((state) => state.assets)
+  const navigate = useNavigate()
   const fallbackSource = useAppSelector((state) => state.assets.fallbackSource)
-
-  const handleAddNew = () => {
-    setSelectedChamber(undefined);
-    setFormOpen(true);
-  };
-
-  const handleEdit = (id: string) => {
-    const chamber = chambers.find(c => c.id === id);
-    if (chamber) {
-      setSelectedChamber(chamber);
-      setFormOpen(true);
-    }
-  };
-
-  const handleCloseForm = () => {
-    setFormOpen(false);
-    setSelectedChamber(undefined);
-  };
 
   return (
     <PageShell title={<TitleWithIcon icon={<AcUnitIcon />}>设备台账</TitleWithIcon>}>
@@ -40,14 +19,9 @@ const ChambersPage: React.FC = () => {
         </Alert>
       ) : null}
       <ChamberList 
-        onEdit={handleEdit}
-        onAddNew={handleAddNew}
-      />
-      
-      <ChamberForm 
-        open={formOpen}
-        onClose={handleCloseForm}
-        chamber={selectedChamber}
+        onView={(id) => navigate(`/assets/${id}`)}
+        onEdit={(id) => navigate(`/assets/${id}?edit=1`)}
+        onAddNew={() => navigate('/assets/new')}
       />
     </PageShell>
   );

@@ -26,16 +26,23 @@ interface ChamberFormProps {
   open: boolean;
   onClose: () => void;
   chamber?: Asset;
+  onSaved?: (asset: Asset) => void
 }
 
-const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => {
+const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber, onSaved }) => {
   const dispatch = useAppDispatch()
+  const [category, setCategory] = useState('')
   const [assetCode, setAssetCode] = useState('')
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<AssetStatus>('available')
+  const [serialNumber, setSerialNumber] = useState('')
   const [manufacturer, setManufacturer] = useState(''); // 新增
   const [model, setModel] = useState(''); // 新增
+  const [owner, setOwner] = useState('')
+  const [tagsText, setTagsText] = useState('')
+  const [photoUrlsText, setPhotoUrlsText] = useState('')
+  const [nameplateUrlsText, setNameplateUrlsText] = useState('')
   const [calibrationDate, setCalibrationDate] = useState<Date | null>(null); // 新增
   const [location, setLocation] = useState('')
 
@@ -50,23 +57,35 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
 
   useEffect(() => {
     if (chamber) {
+      setCategory(chamber.category || '')
       setAssetCode(chamber.assetCode || '')
       setName(chamber.name);
       setDescription(chamber.description || '');
       setStatus(chamber.status);
+      setSerialNumber(chamber.serialNumber || '')
       setManufacturer(chamber.manufacturer || '');
       setModel(chamber.model || '');
+      setOwner(chamber.owner || '')
+      setTagsText(Array.isArray(chamber.tags) ? chamber.tags.join(', ') : '')
+      setPhotoUrlsText(Array.isArray(chamber.photoUrls) ? chamber.photoUrls.join('\n') : '')
+      setNameplateUrlsText(Array.isArray(chamber.nameplateUrls) ? chamber.nameplateUrls.join('\n') : '')
       // Parse date strings back to Date objects
       setCalibrationDate(chamber.calibrationDate ? new Date(chamber.calibrationDate) : null);
       setLocation(chamber.location || '')
     } else {
       // 重置表单
+      setCategory('')
       setAssetCode('')
       setName('');
       setDescription('');
       setStatus('available');
+      setSerialNumber('')
       setManufacturer(''); // 新增
       setModel(''); // 新增
+      setOwner('')
+      setTagsText('')
+      setPhotoUrlsText('')
+      setNameplateUrlsText('')
       setCalibrationDate(null); // 新增
       setLocation('')
       setErrors({ assetCode: false, name: false, manufacturer: false, model: false, location: false }); // 重置错误状态
@@ -85,43 +104,63 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
     return !(newErrors.assetCode || newErrors.name || newErrors.manufacturer || newErrors.model || newErrors.location);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) { // 更新验证调用
       return;
     }
+
+    const parseList = (value: string) =>
+      value
+        .split(/[\n,]+/g)
+        .map((s) => s.trim())
+        .filter((s) => Boolean(s))
     
     const chamberData: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> = {
       type: 'chamber',
+      category: category.trim() || undefined,
       assetCode: assetCode.trim(),
       name,
       description: description || undefined,
       status,
       location: location.trim(),
+      serialNumber: serialNumber.trim() || undefined,
       manufacturer, // 新增
       model, // 新增
+      owner: owner.trim() || undefined,
+      tags: tagsText.trim() ? parseList(tagsText) : undefined,
+      photoUrls: photoUrlsText.trim() ? parseList(photoUrlsText) : undefined,
+      nameplateUrls: nameplateUrlsText.trim() ? parseList(nameplateUrlsText) : undefined,
       // Convert dates to ISO strings for serialization
       calibrationDate: calibrationDate ? calibrationDate.toISOString() : undefined,
     };
     
     if (chamber && chamber.id) {
-      dispatch(
+      const updated = await dispatch(
         updateAsset({
           id: chamber.id,
           changes: {
+            category: chamberData.category,
             assetCode: chamberData.assetCode,
             name: chamberData.name,
             description: chamberData.description,
             status: chamberData.status,
             location: chamberData.location,
+            serialNumber: chamberData.serialNumber,
             manufacturer: chamberData.manufacturer,
             model: chamberData.model,
+            owner: chamberData.owner,
+            tags: chamberData.tags,
+            photoUrls: chamberData.photoUrls,
+            nameplateUrls: chamberData.nameplateUrls,
             calibrationDate: chamberData.calibrationDate,
           },
         })
-      )
+      ).unwrap()
+      onSaved?.(updated)
     } else {
-      dispatch(addAsset(chamberData))
+      const created = await dispatch(addAsset(chamberData)).unwrap()
+      onSaved?.(created)
     }
     
     onClose();
@@ -138,6 +177,13 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
         <DialogContent dividers>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}> {/* 新增 */}
             <Stack spacing={2.5} sx={{ pt: 1 }}>
+              <TextField
+                label="设备种类"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                fullWidth
+                placeholder="例如：环境箱 / 温湿度箱 / 夹具..."
+              />
               <TextField
                 label="资产号"
                 value={assetCode}
@@ -157,6 +203,13 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
                 helperText={errors.name ? '请输入名称' : ''} // 新增
               />
               
+              <TextField
+                label="SN"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value)}
+                fullWidth
+              />
+
               <TextField
                 label="描述"
                 value={description}
@@ -207,6 +260,19 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
                 error={errors.model}
                 helperText={errors.model ? '请输入型号' : ''}
               />
+              <TextField
+                label="负责人"
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                fullWidth
+              />
+              <TextField
+                label="标签"
+                value={tagsText}
+                onChange={(e) => setTagsText(e.target.value)}
+                fullWidth
+                placeholder="多个标签用逗号或换行分隔"
+              />
               <DateTimePicker
                 label="校验日期"
                 value={calibrationDate}
@@ -216,6 +282,24 @@ const ChamberForm: React.FC<ChamberFormProps> = ({ open, onClose, chamber }) => 
                     fullWidth: true,
                   }
                 }}
+              />
+              <TextField
+                label="设备照片（URL）"
+                value={photoUrlsText}
+                onChange={(e) => setPhotoUrlsText(e.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                placeholder="每行一个 URL（或用逗号分隔）"
+              />
+              <TextField
+                label="铭牌照片（URL）"
+                value={nameplateUrlsText}
+                onChange={(e) => setNameplateUrlsText(e.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                placeholder="每行一个 URL（或用逗号分隔）"
               />
             </Stack>
           </LocalizationProvider>

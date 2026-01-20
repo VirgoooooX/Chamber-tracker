@@ -43,6 +43,7 @@ const docToAsset = (docSnap: DocumentSnapshot<DocumentData>): Asset => {
     type: data.type as AssetType,
     name: data.name as string,
     status: data.status as Asset['status'],
+    category: data.category as string | undefined,
     assetCode: data.assetCode as string | undefined,
     description: data.description as string | undefined,
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : undefined,
@@ -51,6 +52,8 @@ const docToAsset = (docSnap: DocumentSnapshot<DocumentData>): Asset => {
     manufacturer: data.manufacturer as string | undefined,
     model: data.model as string | undefined,
     owner: data.owner as string | undefined,
+    photoUrls: Array.isArray(data.photoUrls) ? (data.photoUrls as string[]) : undefined,
+    nameplateUrls: Array.isArray(data.nameplateUrls) ? (data.nameplateUrls as string[]) : undefined,
     calibrationDate,
     createdAt,
     updatedAt,
@@ -88,6 +91,9 @@ export const createAsset = async (
   if (assetData.model !== undefined) dataToSave.model = assetData.model
   if (assetData.owner !== undefined) dataToSave.owner = assetData.owner
   if (assetData.assetCode !== undefined) dataToSave.assetCode = assetData.assetCode
+  if (assetData.category !== undefined) dataToSave.category = assetData.category
+  if (assetData.photoUrls !== undefined) dataToSave.photoUrls = assetData.photoUrls
+  if (assetData.nameplateUrls !== undefined) dataToSave.nameplateUrls = assetData.nameplateUrls
 
   if (assetData.calibrationDate) {
     const d = new Date(assetData.calibrationDate)

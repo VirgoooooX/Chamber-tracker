@@ -68,6 +68,7 @@ export const mapChamberToAsset = (chamber: Chamber): Omit<Asset, 'updatedAt'> =>
     name: chamber.name,
     description: chamber.description,
     status: chamber.status,
+    category: '环境箱',
     manufacturer: chamber.manufacturer,
     model: chamber.model,
     calibrationDate: chamber.calibrationDate,

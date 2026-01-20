@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Chip,
@@ -18,6 +21,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import EventAvailableIcon from '@mui/icons-material/EventAvailable'
 import BuildCircleIcon from '@mui/icons-material/BuildCircle'
 import SpeedIcon from '@mui/icons-material/Speed'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import { zhCN } from 'date-fns/locale'
@@ -37,9 +41,11 @@ import { useNavigate } from 'react-router-dom'
 import { fetchProjects } from '../store/projectsSlice'
 import { fetchTestProjects } from '../store/testProjectsSlice'
 import { isUsageLogOccupyingAsset } from '../utils/statusHelpers'
-import type { UsageLog } from '../types'
+import type { Asset, UsageLog } from '../types'
 
 type RangePreset = '7d' | '30d' | '90d' | 'custom'
+
+const TOP_ROW_HEIGHT = 180
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`
 
@@ -74,8 +80,8 @@ const KpiTile: React.FC<{
         borderColor: alpha(color, 0.22),
         background: `linear-gradient(180deg, ${alpha(color, 0.10)} 0%, ${alpha(theme.palette.background.paper, 1)} 56%)`,
         borderRadius: 2,
-        p: 2,
-        minHeight: 110,
+        p: 1.5,
+        minHeight: 92,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -83,17 +89,17 @@ const KpiTile: React.FC<{
     >
       <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
         <Stack spacing={0.25}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 750 }}>
             {label}
           </Typography>
-          <Typography variant="h4" sx={{ lineHeight: 1.05 }}>
+          <Typography variant="h5" sx={{ lineHeight: 1.05, fontWeight: 900 }}>
             {value}
           </Typography>
         </Stack>
         <Box
           sx={{
-            width: 44,
-            height: 44,
+            width: 38,
+            height: 38,
             borderRadius: 2,
             display: 'grid',
             placeItems: 'center',
@@ -278,6 +284,33 @@ const DashboardPage: React.FC = () => {
     })
   }, [assetNameById, usageLogs])
 
+  const activeOccupancyByAssetId = useMemo(() => {
+    const map = new Map<string, ActiveOccupancy>()
+    activeOccupancies.forEach((o) => map.set(o.chamberId, o))
+    return map
+  }, [activeOccupancies])
+
+  const assetsByCategory = useMemo(() => {
+    const map = new Map<string, Asset[]>()
+    assets.forEach((asset) => {
+      const key = asset.category?.trim() || (asset.type === 'chamber' ? '环境箱' : asset.type)
+      const list = map.get(key) ?? []
+      list.push(asset)
+      map.set(key, list)
+    })
+    map.forEach((list, key) =>
+      map.set(
+        key,
+        list.slice().sort((a, b) => {
+          const aName = a.name || ''
+          const bName = b.name || ''
+          return aName.localeCompare(bName, 'zh-Hans-CN')
+        })
+      )
+    )
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'))
+  }, [assets])
+
   return (
     <PageShell
       title={
@@ -343,289 +376,422 @@ const DashboardPage: React.FC = () => {
         </AppCard>
       ) : null}
 
-      <Grid container spacing={2} sx={{ mt: preset === 'custom' ? 2 : 0 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="设备总数" value={kpis.totalAssets} icon={<AssessmentIcon />} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="可用" value={kpis.statusCounts.available} icon={<EventAvailableIcon />} tone="success" />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="使用中" value={kpis.statusCounts['in-use']} icon={<SpeedIcon />} tone="warning" />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="维护中" value={kpis.statusCounts.maintenance} icon={<BuildCircleIcon />} tone="error" />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <KpiTile
-            label="使用率"
-            value={utilizationText}
-            icon={<SpeedIcon />}
-            footer={
-              <Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(100, Math.round(kpis.utilization.ratio * 100))}
-                  sx={{
-                    height: 8,
-                    borderRadius: 999,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.14),
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 999,
-                    },
-                  }}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                  统计口径：按设备合并占用时段后计算
-                </Typography>
+      <Box
+        sx={{
+          mt: preset === 'custom' ? 2 : 0,
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'repeat(1, minmax(0, 1fr))',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            md: 'repeat(3, minmax(0, 1fr))',
+            lg: 'repeat(5, minmax(0, 1fr))',
+          },
+          gridAutoRows: `${TOP_ROW_HEIGHT}px`,
+          gridAutoFlow: 'row',
+          gap: 2,
+          alignItems: 'stretch',
+        }}
+      >
+        <Box sx={{ display: 'flex', minWidth: 0, height: '100%', alignItems: 'stretch' }}>
+          <AppCard
+            sx={{
+              flex: 1,
+              height: '100%',
+              p: 0,
+              border: 'none',
+              boxShadow: 'none',
+              backgroundColor: 'transparent',
+            }}
+            contentSx={{ mt: 0, height: '100%' }}
+          >
+            <Box sx={{ height: '100%', overflow: 'hidden' }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gridTemplateRows: 'repeat(2, auto)',
+                  gap: 1.25,
+                  minWidth: 0,
+                  alignContent: 'start',
+                }}
+              >
+                {([
+                  {
+                    label: '设备总数',
+                    value: kpis.totalAssets,
+                    color: theme.palette.primary.main,
+                    icon: <AssessmentIcon fontSize="small" />,
+                  },
+                  {
+                    label: '可用',
+                    value: kpis.statusCounts.available,
+                    color: theme.palette.success.main,
+                    icon: <EventAvailableIcon fontSize="small" />,
+                  },
+                  {
+                    label: '使用中',
+                    value: kpis.statusCounts['in-use'],
+                    color: theme.palette.warning.main,
+                    icon: <SpeedIcon fontSize="small" />,
+                  },
+                  {
+                    label: '维护中',
+                    value: kpis.statusCounts.maintenance,
+                    color: theme.palette.error.main,
+                    icon: <BuildCircleIcon fontSize="small" />,
+                  },
+                ] as const).map((item) => (
+                  <Box
+                    key={item.label}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: alpha(item.color, 0.24),
+                      background: `linear-gradient(180deg, ${alpha(item.color, 0.10)} 0%, ${alpha(theme.palette.background.paper, 1)} 74%)`,
+                      borderRadius: 2,
+                      p: 1.5,
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) auto',
+                      alignItems: 'center',
+                      gap: 1.25,
+                      minWidth: 0,
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 950, fontSize: 40, lineHeight: 1, letterSpacing: -0.9 }} noWrap>
+                      {item.value}
+                    </Typography>
+                    <Stack spacing={0.35} alignItems="flex-end" justifyContent="center" sx={{ minWidth: 0 }}>
+                      <Box
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 2,
+                          display: 'grid',
+                          placeItems: 'center',
+                          backgroundColor: alpha(item.color, 0.14),
+                          color: item.color,
+                          flex: '0 0 auto',
+                        }}
+                      >
+                        {item.icon}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900 }} noWrap>
+                        {item.label}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                ))}
               </Box>
-            }
-          />
-        </Grid>
+            </Box>
+          </AppCard>
+        </Box>
 
-        <Grid item xs={12} md={6}>
-          <KpiTile
-            label="超时/逾期"
-            value={kpis.overdueActiveCount}
-            icon={<ErrorOutlineIcon />}
-            tone={kpis.overdueActiveCount > 0 ? 'error' : 'default'}
-            footer={
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                <Typography variant="caption" color="text.secondary">
-                  时间窗内出现的逾期记录数量
-                </Typography>
-                <Chip
-                  size="small"
-                  label={isLoading ? '加载中' : '已更新'}
-                  color={isLoading ? 'default' : 'success'}
-                  variant={isLoading ? 'outlined' : 'filled'}
-                />
-              </Stack>
-            }
-          />
-        </Grid>
-      </Grid>
+        {([
+          {
+            title: '维修追踪',
+            tone: 'warning' as const,
+            value: isRepairLoading ? '-' : String(repairStats.quotePending + repairStats.repairPending),
+            unit: '单',
+            notes: [
+              `未询价：${isRepairLoading ? '-' : repairStats.quotePending}`,
+              `待维修：${isRepairLoading ? '-' : repairStats.repairPending}`,
+              `本周完成：${isRepairLoading ? '-' : repairStats.completedThisWeek}`,
+            ],
+            cta: { label: '进入维修', onClick: () => navigate('/repairs') },
+            chip: { label: '待处理', color: 'warning' as const },
+          },
+          {
+            title: `校验提醒（≤${kpis.calibrationDueSoon.daysThreshold}天）`,
+            tone: 'warning' as const,
+            value: String(kpis.calibrationDueSoon.count),
+            unit: '台',
+            notes: [
+              `阈值：≤${kpis.calibrationDueSoon.daysThreshold}天`,
+              kpis.calibrationDueSoon.assets[0]?.name ? `最近到期：${kpis.calibrationDueSoon.assets[0].name}` : '最近到期：-',
+              kpis.calibrationDueSoon.assets[0]?.calibrationDate
+                ? `日期：${new Date(kpis.calibrationDueSoon.assets[0].calibrationDate).toLocaleString()}`
+                : '日期：-',
+            ],
+            cta: { label: '查看设备', onClick: () => navigate('/chambers') },
+            chip: { label: kpis.calibrationDueSoon.count > 0 ? '需处理' : '正常', color: kpis.calibrationDueSoon.count > 0 ? ('warning' as const) : ('success' as const) },
+          },
+          {
+            title: '使用率',
+            tone: 'primary' as const,
+            value: utilizationText,
+            unit: '',
+            notes: [
+              `时间窗：${preset === 'custom' ? '自定义' : preset === '7d' ? '7天' : preset === '30d' ? '30天' : '90天'}`,
+              '口径：合并占用时段',
+              `数据：${isLoading ? '加载中' : '已更新'}`,
+            ],
+            cta: { label: '打开时间线', onClick: () => navigate('/timeline') },
+            chip: { label: '利用率', color: 'primary' as const },
+          },
+          {
+            title: '超时/逾期',
+            tone: 'error' as const,
+            value: String(kpis.overdueActiveCount),
+            unit: '条',
+            notes: ['口径：时间窗内逾期记录', `时间窗：${preset === 'custom' ? '自定义' : preset === '7d' ? '7天' : preset === '30d' ? '30天' : '90天'}`, `数据：${isLoading ? '加载中' : '已更新'}`],
+            cta: { label: '打开记录', onClick: () => navigate('/usage-logs') },
+            chip: { label: kpis.overdueActiveCount > 0 ? '关注' : '正常', color: kpis.overdueActiveCount > 0 ? ('error' as const) : ('success' as const) },
+          },
+        ] as const).map((card) => {
+          const accent =
+            card.tone === 'warning'
+              ? theme.palette.warning.main
+              : card.tone === 'error'
+                ? theme.palette.error.main
+                : card.tone === 'primary'
+                  ? theme.palette.primary.main
+                  : theme.palette.info.main
+
+          return (
+            <Box key={card.title} sx={{ display: 'flex', minWidth: 0, height: '100%', alignItems: 'stretch' }}>
+              <AppCard
+                sx={{
+                  flex: 1,
+                  height: '100%',
+                  p: 0,
+                  border: 'none',
+                  boxShadow: 'none',
+                  backgroundColor: 'transparent',
+                }}
+                contentSx={{ mt: 0 }}
+              >
+                <Box
+                  sx={{
+                    height: '100%',
+                    border: '1px solid',
+                    borderColor: alpha(accent, 0.24),
+                    background: `linear-gradient(180deg, ${alpha(accent, 0.12)} 0%, ${alpha(theme.palette.background.paper, 1)} 68%)`,
+                    borderRadius: 2,
+                    p: 1.25,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <Typography variant="subtitle1" sx={{ fontWeight: 950, lineHeight: 1.15, mb: 1, fontSize: { xs: 16, sm: 17 } }} noWrap>
+                    {card.title}
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 1.25, alignItems: 'start' }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} alignItems="baseline" sx={{ flexWrap: 'wrap' }}>
+                        <Typography sx={{ fontWeight: 950, fontSize: 52, lineHeight: 1, letterSpacing: -1.1 }} noWrap>
+                          {card.value}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 850 }}>
+                          {card.unit || ' '}
+                        </Typography>
+                      </Stack>
+                    </Box>
+
+                    <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                      {card.notes.map((t) => (
+                        <Typography key={t} variant="caption" color="text.secondary" noWrap>
+                          {t}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </Box>
+
+                  <Box sx={{ mt: 'auto', pt: 1.25, minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                    <Button size="small" variant="outlined" onClick={card.cta.onClick} sx={{ whiteSpace: 'nowrap' }}>
+                      {card.cta.label}
+                    </Button>
+                    <Chip
+                      size="small"
+                      label={card.chip.label}
+                      color={card.chip.color}
+                      variant="filled"
+                      sx={{
+                        fontWeight: 900,
+                        pointerEvents: 'none',
+                        border: '1px solid',
+                        borderColor: alpha(accent, 0.22),
+                        backgroundColor: alpha(accent, theme.palette.mode === 'dark' ? 0.16 : 0.10),
+                        color: alpha(accent, theme.palette.mode === 'dark' ? 0.95 : 0.90),
+                      }}
+                    />
+                  </Box>
+                </Box>
+              </AppCard>
+            </Box>
+          )
+        })}
+      </Box>
 
       <AppCard
-        title={`当前使用中设备（${activeOccupancies.length}）`}
+        title="设备状态总览"
         actions={
           <Stack direction="row" spacing={1}>
+            <Button size="small" variant="outlined" onClick={() => navigate('/chambers')} sx={{ whiteSpace: 'nowrap' }}>
+              设备台账
+            </Button>
             <Button size="small" variant="outlined" onClick={() => navigate('/timeline')} sx={{ whiteSpace: 'nowrap' }}>
               时间线
-            </Button>
-            <Button size="small" variant="outlined" onClick={() => navigate('/usage-logs')} sx={{ whiteSpace: 'nowrap' }}>
-              使用记录
             </Button>
           </Stack>
         }
         sx={{ mt: 2 }}
+        contentSx={{ mx: -2.5, mb: -2.5 }}
       >
-        {usageLogsLoading ? (
-          <LinearProgress />
-        ) : activeOccupancies.length === 0 ? (
-          <Typography color="text.secondary">当前无设备在使用</Typography>
+        {isLoading ? (
+          <Box sx={{ p: 2.5 }}>
+            <LinearProgress />
+          </Box>
+        ) : assetsByCategory.length === 0 ? (
+          <Box sx={{ p: 2.5 }}>
+            <Typography color="text.secondary">暂无设备</Typography>
+          </Box>
         ) : (
-          <Stack spacing={1.25}>
-            {activeOccupancies.slice(0, 10).map((item) => {
-              const projectName = item.log.projectId ? projectNameById.get(item.log.projectId) : undefined
-              const testProjectName = item.log.testProjectId ? testProjectNameById.get(item.log.testProjectId) : undefined
-              const endText = formatDateTime(item.log.endTime)
-              const nowMs = Date.now()
-              const isOverdue = Number.isFinite(item.endMs) && item.endMs < nowMs
-              const detail = (
-                <Box sx={{ p: 0.25 }}>
-                  <Typography sx={{ fontWeight: 850 }}>{item.chamberName}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    项目：{projectName ?? testProjectName ?? '-'}
-                  </Typography>
-                  <Typography variant="body2">使用人：{item.log.user || '-'}</Typography>
-                  <Typography variant="body2">开始：{formatDateTime(item.log.startTime)}</Typography>
-                  <Typography variant="body2">结束：{endText}</Typography>
-                  {item.log.notes ? (
-                    <Typography variant="body2" sx={{ mt: 0.5, maxWidth: 360 }}>
-                      备注：{item.log.notes}
-                    </Typography>
-                  ) : null}
-                </Box>
-              )
+          <Box sx={{ px: 2.5, pb: 2.5 }}>
+            <Stack spacing={1.25}>
+              {assetsByCategory.map(([category, list]) => {
+                const statusCounts = list.reduce(
+                  (acc, a) => {
+                    if (a.status === 'available') acc.available += 1
+                    else if (a.status === 'in-use') acc.inUse += 1
+                    else if (a.status === 'maintenance') acc.maintenance += 1
+                    return acc
+                  },
+                  { available: 0, inUse: 0, maintenance: 0 }
+                )
 
-              return (
-                <Tooltip
-                  key={`${item.chamberId}:${item.log.id}`}
-                  title={detail}
-                  arrow
-                  placement="top-start"
-                  componentsProps={{
-                    tooltip: {
-                      sx: {
-                        bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.98 : 0.96),
-                        color: 'text.primary',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        boxShadow: (theme) =>
-                          `0 12px 28px ${alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.48 : 0.22)}`,
-                      },
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      p: 1.25,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1.5,
-                      backgroundColor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.6),
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 850 }} noWrap>
-                          {item.chamberName}
-                        </Typography>
-                        {item.activeCount > 1 ? <Chip size="small" label="多条记录" color="warning" /> : null}
+                return (
+                  <Accordion key={category} defaultExpanded disableGutters elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ width: '100%', pr: 1 }}>
+                        <Typography sx={{ fontWeight: 900 }}>{category}</Typography>
+                        <Chip size="small" label={`共 ${list.length}`} variant="outlined" sx={{ fontWeight: 800 }} />
+                        <Box sx={{ flex: 1 }} />
+                        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+                          <Chip size="small" label={`可用 ${statusCounts.available}`} color="success" variant="outlined" />
+                          <Chip size="small" label={`使用中 ${statusCounts.inUse}`} color="warning" variant="outlined" />
+                          <Chip size="small" label={`维护 ${statusCounts.maintenance}`} color="error" variant="outlined" />
+                        </Stack>
                       </Stack>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        预计结束：{endText}
-                      </Typography>
-                    </Box>
-                    <Chip size="small" label={isOverdue ? '逾期' : '使用中'} color={isOverdue ? 'error' : 'warning'} />
-                  </Box>
-                </Tooltip>
-              )
-            })}
-            {activeOccupancies.length > 10 ? (
-              <Typography variant="caption" color="text.secondary">
-                仅展示前 10 条，更多请到“时间线 / 使用记录”查看
-              </Typography>
-            ) : null}
-          </Stack>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ pt: 0 }}>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: {
+                            xs: 'repeat(2, minmax(0, 1fr))',
+                            sm: 'repeat(3, minmax(0, 1fr))',
+                            md: 'repeat(4, minmax(0, 1fr))',
+                            lg: 'repeat(6, minmax(0, 1fr))',
+                            xl: 'repeat(8, minmax(0, 1fr))',
+                          },
+                          gap: 1.25,
+                        }}
+                      >
+                        {list.map((asset) => {
+                          const color =
+                            asset.status === 'available'
+                              ? theme.palette.success.main
+                              : asset.status === 'in-use'
+                                ? theme.palette.warning.main
+                                : theme.palette.error.main
+
+                          const occupancy = activeOccupancyByAssetId.get(asset.id)
+                          const projectName = occupancy?.log.projectId ? projectNameById.get(occupancy.log.projectId) : undefined
+                          const testProjectName = occupancy?.log.testProjectId ? testProjectNameById.get(occupancy.log.testProjectId) : undefined
+                          const endText = occupancy ? formatDateTime(occupancy.log.endTime) : undefined
+                          const nowMs = Date.now()
+                          const isOverdue = occupancy ? Number.isFinite(occupancy.endMs) && occupancy.endMs < nowMs : false
+
+                          const tooltip = occupancy ? (
+                            <Box sx={{ p: 0.25 }}>
+                              <Typography sx={{ fontWeight: 900 }}>{asset.name}</Typography>
+                              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                项目：{projectName ?? testProjectName ?? '-'}
+                              </Typography>
+                              <Typography variant="body2">使用人：{occupancy.log.user || '-'}</Typography>
+                              <Typography variant="body2">开始：{formatDateTime(occupancy.log.startTime)}</Typography>
+                              <Typography variant="body2">结束：{endText}</Typography>
+                              {occupancy.log.notes ? (
+                                <Typography variant="body2" sx={{ mt: 0.5, maxWidth: 360 }}>
+                                  备注：{occupancy.log.notes}
+                                </Typography>
+                              ) : null}
+                            </Box>
+                          ) : null
+
+                          const card = (
+                            <Box
+                              onClick={() => navigate(`/assets/${asset.id}`)}
+                              sx={{
+                                border: '1px solid',
+                                borderColor: alpha(color, 0.26),
+                                borderRadius: 2,
+                                p: 1.1,
+                                cursor: 'pointer',
+                                height: 74,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                backgroundColor: alpha(color, theme.palette.mode === 'dark' ? 0.22 : 0.14),
+                                '&:hover': {
+                                  borderColor: alpha(color, 0.48),
+                                  boxShadow: `0 10px 22px ${alpha(color, theme.palette.mode === 'dark' ? 0.22 : 0.12)}`,
+                                },
+                              }}
+                            >
+                              <Typography sx={{ fontWeight: 950 }} noWrap>
+                                  {asset.name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                                sx={{
+                                  mt: 0.25,
+                                  visibility: occupancy && asset.status === 'in-use' ? 'visible' : 'hidden',
+                                }}
+                              >
+                                {occupancy ? `结束：${endText}` : '占位'}
+                              </Typography>
+                            </Box>
+                          )
+
+                          return (
+                            <Box key={asset.id}>
+                              {tooltip ? (
+                                <Tooltip
+                                  title={tooltip}
+                                  arrow
+                                  placement="top-start"
+                                  componentsProps={{
+                                    tooltip: {
+                                      sx: {
+                                        bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.98 : 0.96),
+                                        color: 'text.primary',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        boxShadow: (theme) =>
+                                          `0 12px 28px ${alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.48 : 0.22)}`,
+                                      },
+                                    },
+                                  }}
+                                >
+                                  {card}
+                                </Tooltip>
+                              ) : (
+                                card
+                              )}
+                            </Box>
+                          )
+                        })}
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                )
+              })}
+            </Stack>
+          </Box>
         )}
       </AppCard>
-
-      <Grid container spacing={2} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={6}>
-          <AppCard
-            title="维修追踪"
-            actions={
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => navigate('/repairs')}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                进入维修管理
-              </Button>
-            }
-          >
-            <Stack spacing={1.25}>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                <Chip
-                  label={isRepairLoading ? '未询价: 加载中' : `未询价: ${repairStats.quotePending}`}
-                  color={repairStats.quotePending > 0 ? 'warning' : 'default'}
-                  sx={{ fontWeight: 650 }}
-                />
-                <Chip
-                  label={isRepairLoading ? '待维修: 加载中' : `待维修: ${repairStats.repairPending}`}
-                  color={repairStats.repairPending > 0 ? 'info' : 'default'}
-                  sx={{ fontWeight: 650 }}
-                />
-                <Chip
-                  label={isRepairLoading ? '本周完成: 加载中' : `本周完成: ${repairStats.completedThisWeek}`}
-                  variant="outlined"
-                  sx={{ fontWeight: 650 }}
-                />
-              </Stack>
-
-              {isRepairLoading ? (
-                <LinearProgress />
-              ) : urgentOpenRepairs.length === 0 ? (
-                <Typography color="text.secondary">暂无待处理的维修工单</Typography>
-              ) : (
-                urgentOpenRepairs.map((t) => (
-                  <Box
-                    key={t.id}
-                    sx={{
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      p: 1.25,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1.5,
-                      backgroundColor: (theme) =>
-                        alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.35 : 0.6),
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 800 }} noWrap>
-                        {assetNameById.get(t.assetId) || t.assetId.slice(0, 8)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {t.problemDesc || '-'}
-                      </Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip
-                        size="small"
-                        label={t.status === 'quote-pending' ? '未询价' : '待维修'}
-                        color={t.status === 'quote-pending' ? 'warning' : 'info'}
-                      />
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => navigate('/repairs')}
-                        sx={{ whiteSpace: 'nowrap' }}
-                      >
-                        处理
-                      </Button>
-                    </Stack>
-                  </Box>
-                ))
-              )}
-            </Stack>
-          </AppCard>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <AppCard title={`校准到期提醒（≤${kpis.calibrationDueSoon.daysThreshold}天）`}>
-            <Stack spacing={1}>
-              {kpis.calibrationDueSoon.count === 0 ? (
-                <Typography color="text.secondary">暂无即将到期的校准</Typography>
-              ) : (
-                kpis.calibrationDueSoon.assets.map((asset) => (
-                  <Box
-                    key={asset.id}
-                    sx={{
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      p: 1.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1.5,
-                    }}
-                  >
-                    <Box>
-                      <Typography sx={{ fontWeight: 750 }}>{asset.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {asset.calibrationDate ? new Date(asset.calibrationDate).toLocaleString() : '未知'}
-                      </Typography>
-                    </Box>
-                    <Chip size="small" label="需处理" color="warning" />
-                  </Box>
-                ))
-              )}
-            </Stack>
-          </AppCard>
-        </Grid>
-      </Grid>
     </PageShell>
   )
 }

@@ -12,18 +12,12 @@ import {
   Chip,
   Alert,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add'; // 添加导入
 import { fetchAssetsByType, deleteAsset } from '../store/assetsSlice'
 import IconButton from '@mui/material/IconButton';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import ConfirmDialog from './ConfirmDialog';
 import AppCard from './AppCard';
@@ -31,16 +25,15 @@ import TitleWithIcon from './TitleWithIcon'
 import AcUnitIcon from '@mui/icons-material/AcUnit'
 
 interface ChamberListProps {
+  onView: (id: string) => void
   onEdit: (id: string) => void;
   onAddNew: () => void;
 }
 
-const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
+const ChamberList: React.FC<ChamberListProps> = ({ onView, onEdit, onAddNew }) => {
   const dispatch = useAppDispatch()
   const { assets: chambers, loading, error } = useAppSelector((state) => state.assets)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [detailsId, setDetailsId] = useState<string | null>(null)
-  const details = chambers.find((c) => c.id === detailsId) || null
 
   useEffect(() => {
     dispatch(fetchAssetsByType('chamber'));
@@ -104,7 +97,12 @@ const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
               </TableRow>
             ) : (
               chambers.map((chamber) => (
-                <TableRow key={chamber.id} hover>
+                <TableRow
+                  key={chamber.id}
+                  hover
+                  onClick={() => onView(chamber.id)}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell sx={{ fontWeight: 650 }}>{chamber.assetCode || '-'}</TableCell>
                   <TableCell>{chamber.name}</TableCell>
                   <TableCell>
@@ -122,13 +120,24 @@ const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
                   </TableCell>
                   <TableCell>{new Date(chamber.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell align="center">
-                    <IconButton onClick={() => setDetailsId(chamber.id)} size="small" color="info">
-                      <InfoOutlinedIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton onClick={() => onEdit(chamber.id)} size="small" color="primary">
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(chamber.id)
+                      }}
+                      size="small"
+                      color="primary"
+                    >
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton onClick={() => handleDeleteClick(chamber.id)} size="small" color="error">
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteClick(chamber.id)
+                      }}
+                      size="small"
+                      color="error"
+                    >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -139,57 +148,6 @@ const ChamberList: React.FC<ChamberListProps> = ({ onEdit, onAddNew }) => {
           </Table>
         </TableContainer>
       </AppCard>
-      <Dialog open={Boolean(details)} onClose={() => setDetailsId(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>设备详情</DialogTitle>
-        <DialogContent dividers>
-          {details ? (
-            <Stack spacing={1.25}>
-              <Typography variant="body2" color="text.secondary">
-                资产号
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>{details.assetCode || '-'}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                名称
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>{details.name}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                位置
-              </Typography>
-              <Typography>{details.location || '-'}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                状态
-              </Typography>
-              <Typography>{details.status}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                厂商 / 型号
-              </Typography>
-              <Typography>{`${details.manufacturer || '-'} / ${details.model || '-'}`}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                描述
-              </Typography>
-              <Typography>{details.description || '-'}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                校验日期
-              </Typography>
-              <Typography>{details.calibrationDate ? new Date(details.calibrationDate).toLocaleString() : '-'}</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                更新时间
-              </Typography>
-              <Typography>{details.updatedAt ? new Date(details.updatedAt).toLocaleString() : '-'}</Typography>
-            </Stack>
-          ) : null}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailsId(null)}>关闭</Button>
-        </DialogActions>
-      </Dialog>
       <ConfirmDialog
         open={Boolean(pendingDeleteId)}
         title="确认删除"

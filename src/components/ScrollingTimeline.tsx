@@ -16,6 +16,7 @@ import {
 import { zhCN } from 'date-fns/locale';
 import { getEffectiveUsageLogStatus } from '../utils/statusHelpers';
 import { Box, Typography, Tooltip, CircularProgress, Alert } from '@mui/material';
+import { useNavigate } from 'react-router-dom'
 
 export const CUSTOM_DAY_START_HOUR = 7;
 
@@ -379,6 +380,7 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
   scrollToTodaySignal,
 }) => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const theme = useTheme();
   const timelineCssVars = useMemo(() => buildTimelineCssVars(theme), [theme]);
   const dayWidthPx = propsDayWidthPx ?? DAY_WIDTH_PX;
@@ -837,7 +839,17 @@ const ScrollingTimeline: React.FC<ScrollingTimelineProps> = ({
         <div className={styles.timelineBodyRow} style={{ width: `${CHAMBER_NAME_WIDTH_PX + totalTimelineWidth}px` }}>
           <div className={styles.timelineChamberColumn} style={{ width: `${CHAMBER_NAME_WIDTH_PX}px` }}>
             {chambers && chambers.map((chamber) => (
-              <div key={chamber.id} className={styles.chamberRowName} style={{ height: `${getChamberRowHeight(chamber.id)}px` }}>
+              <div
+                key={chamber.id}
+                className={styles.chamberRowName}
+                style={{ height: `${getChamberRowHeight(chamber.id)}px`, cursor: 'pointer' }}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/assets/${chamber.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') navigate(`/assets/${chamber.id}`)
+                }}
+              >
                 {chamber.name}
               </div>
             ))}

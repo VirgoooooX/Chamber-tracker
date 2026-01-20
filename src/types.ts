@@ -16,6 +16,7 @@ export interface Asset {
   type: AssetType
   name: string
   status: AssetStatus
+  category?: string
   assetCode?: string
   description?: string
   tags?: string[]
@@ -24,6 +25,8 @@ export interface Asset {
   manufacturer?: string
   model?: string
   owner?: string
+  photoUrls?: string[]
+  nameplateUrls?: string[]
   calibrationDate?: string
   createdAt: string
   updatedAt?: string

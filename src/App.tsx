@@ -11,6 +11,7 @@ import UsageLogPage from './pages/UsagelogPage';
 import AlertsPage from './pages/AlertsPage'
 import SettingsPage from './pages/SettingsPage'
 import RepairsPage from './pages/RepairsPage'
+import AssetDetailPage from './pages/AssetDetailPage';
 import LoginPage from './pages/LoginPage'; // 新增
 import PrivateRoute from './components/PrivateRoute'; // 新增
 import { loadUserFromStorage } from './store/authSlice'; // 新增
@@ -40,6 +41,8 @@ function App() {
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/usage-logs" element={<UsageLogPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/assets/new" element={<AssetDetailPage mode="create" />} />
+            <Route path="/assets/:assetId" element={<AssetDetailPage mode="view" />} />
           </Route>
 
           <Route element={<PrivateRoute allowedRoles={['admin']} />}> {/* 仅管理员可访问的页面 */}
